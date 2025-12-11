@@ -1,14 +1,17 @@
 use super::errors::{CapsolverError, Result};
 use super::response::CapsolverResponse;
-use super::types::{CapsolverTask, CreateTaskData, GetTaskData};
+use super::types::{CapsolverTask, CreateTaskData, CreateTaskRequest, GetTaskData, GetTaskResultRequest};
 use crate::types::TaskId;
 use reqwest::Url;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use secrecy::{ExposeSecret, SecretString};
 use serde::de::DeserializeOwned;
-use serde_json::json;
-use snafu::ResultExt;
+use serde::Serialize;
 use std::fmt::Debug;
+
+/// API endpoint paths
+const CREATE_TASK_PATH: &str = "createTask";
+const GET_TASK_RESULT_PATH: &str = "getTaskResult";
 
 #[cfg(feature = "tracing")]
 use opentelemetry::trace::Status;
@@ -46,7 +49,7 @@ impl CapsolverClient {
     pub fn new(url: Url, api_key: impl Into<String>) -> Result<Self> {
         let client = reqwest::Client::builder()
             .build()
-            .context(super::errors::BuildHttpClientSnafu)?;
+            .map_err(CapsolverError::BuildHttpClient)?;
 
         Ok(Self {
             http_client: ClientBuilder::new(client).build(),
@@ -71,39 +74,38 @@ impl CapsolverClient {
         }
     }
 
+    /// Send a POST request to the Capsolver API
+    async fn post<Req: Serialize, Res: DeserializeOwned>(
+        &self,
+        path: &str,
+        request: &Req,
+    ) -> Result<Res> {
+        let mut url = self.url.clone();
+        url.set_path(path);
+
+        let response = self.http_client.post(url).json(request).send().await?;
+
+        response
+            .json()
+            .await
+            .map_err(CapsolverError::ParseResponse)
+    }
+
     /// Create a captcha solving task
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(name = "CapsolverClient::create_task", skip_all)
     )]
     pub async fn create_task(&self, task: CapsolverTask) -> Result<TaskId> {
-        let api_key = self.api_key.expose_secret();
+        let request = CreateTaskRequest {
+            client_key: self.api_key.expose_secret(),
+            task: &task,
+        };
 
-        let payload = json!({
-            "clientKey": api_key,
-            "task": task,
-        });
+        let response: CapsolverResponse<CreateTaskData> =
+            self.post(CREATE_TASK_PATH, &request).await?;
 
-        let mut url = self.url.clone();
-        url.set_path("createTask");
-
-        let response = self
-            .http_client
-            .post(url)
-            .json(&payload)
-            .send()
-            .await
-            .context(super::errors::HttpRequestSnafu)?;
-
-        let data: CapsolverResponse<CreateTaskData> = response
-            .json()
-            .await
-            .context(super::errors::ParseResponseSnafu)?;
-
-        let data = data
-            .into_result()
-            .map_err(|error| CapsolverError::Api { error })?;
-
+        let data = response.into_result().map_err(CapsolverError::Api)?;
         let task_id = TaskId::from(data.task_id);
 
         #[cfg(feature = "tracing")]
@@ -129,31 +131,15 @@ impl CapsolverClient {
         &self,
         task_id: &TaskId,
     ) -> Result<Option<T>> {
-        let api_key = self.api_key.expose_secret();
-        let payload = json!({
-            "clientKey": api_key,
-            "taskId": task_id.as_ref(),
-        });
+        let request = GetTaskResultRequest {
+            client_key: self.api_key.expose_secret(),
+            task_id: task_id.as_ref(),
+        };
 
-        let mut url = self.url.clone();
-        url.set_path("getTaskResult");
+        let response: CapsolverResponse<GetTaskData<T>> =
+            self.post(GET_TASK_RESULT_PATH, &request).await?;
 
-        let response = self
-            .http_client
-            .post(url)
-            .json(&payload)
-            .send()
-            .await
-            .context(super::errors::HttpRequestSnafu)?;
-
-        let data: CapsolverResponse<GetTaskData<T>> = response
-            .json()
-            .await
-            .context(super::errors::ParseResponseSnafu)?;
-
-        let data = data
-            .into_result()
-            .map_err(|error| CapsolverError::Api { error })?;
+        let data = response.into_result().map_err(CapsolverError::Api)?;
 
         #[cfg(feature = "tracing")]
         if data.solution.is_some() {
@@ -169,6 +155,7 @@ mod tests {
     use super::*;
     use crate::providers::capsolver::errors::CapsolverErrorCode;
     use serde::{Deserialize, Serialize};
+    use serde_json::json;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -234,7 +221,7 @@ mod tests {
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            CapsolverError::Api { error } => {
+            CapsolverError::Api(error) => {
                 assert_eq!(error.error_id, 1);
                 assert_eq!(error.error_code, CapsolverErrorCode::ZeroBalance);
             }
@@ -330,7 +317,7 @@ mod tests {
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            CapsolverError::Api { error } => {
+            CapsolverError::Api(error) => {
                 assert_eq!(error.error_id, 1);
                 assert_eq!(error.error_code, CapsolverErrorCode::TaskIdInvalid);
                 assert_eq!(error.description, Some("Task ID is invalid".to_string()));

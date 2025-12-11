@@ -7,8 +7,6 @@ use std::fmt::{Debug, Display};
 use std::future::Future;
 
 #[cfg(feature = "tracing")]
-use snafu::Report;
-#[cfg(feature = "tracing")]
 use tracing::debug;
 
 /// Core trait that all captcha solver providers must implement
@@ -147,7 +145,7 @@ where
                 let _ = (err, duration);
                 #[cfg(feature = "tracing")]
                 debug!(
-                    error = %Report::from_error(err),
+                    error = %err,
                     task_type = %task,
                     retry_after_secs = %duration.as_secs_f64(),
                     "Retrying create_task after transient error"
@@ -177,7 +175,7 @@ where
                 let _ = (err, duration);
                 #[cfg(feature = "tracing")]
                 debug!(
-                    error = %Report::from_error(err),
+                    error = %err,
                     task_id = %task_id,
                     retry_after_secs = %duration.as_secs_f64(),
                     "Retrying get_task_result after transient error"

@@ -1,32 +1,28 @@
 use crate::errors::RetryableError;
 use crate::types::TaskId;
 use serde::{Deserialize, Serialize};
-use snafu::Snafu;
 use std::fmt;
 use std::time::Duration;
+use thiserror::Error;
 
-#[derive(Debug, Snafu)]
-#[snafu(visibility(pub))]
+#[derive(Debug, Error)]
 pub enum CapsolverError {
-    #[snafu(display("Failed to build HTTP client: {source}"))]
-    BuildHttpClient { source: reqwest::Error },
+    #[error("Failed to build HTTP client: {0}")]
+    BuildHttpClient(#[source] reqwest::Error),
 
-    #[snafu(display("HTTP request failed: {source}"))]
-    HttpRequest {
-        source: reqwest_middleware::Error,
-    },
+    #[error("HTTP request failed: {0}")]
+    HttpRequest(#[from] reqwest_middleware::Error),
 
-    #[snafu(display("Failed to parse response: {source}"))]
-    ParseResponse { source: reqwest::Error },
+    #[error("Failed to parse response: {0}")]
+    ParseResponse(#[source] reqwest::Error),
 
-    #[snafu(display("Capsolver API error: {error}"))]
-    Api { error: CapsolverApiError },
+    #[error("Capsolver API error: {0}")]
+    Api(#[source] CapsolverApiError),
 
-    #[snafu(display(
-        "Timeout waiting for captcha solution after {:.1}s; Task id: {}",
-        timeout.as_secs_f64(),
-        task_id
-    ))]
+    #[error(
+        "Timeout waiting for captcha solution after {:.1}s; Task id: {task_id}",
+        timeout.as_secs_f64()
+    )]
     SolutionTimeout { timeout: Duration, task_id: TaskId },
 }
 
@@ -36,13 +32,13 @@ impl RetryableError for CapsolverError {
     fn is_retryable(&self) -> bool {
         match self {
             // Retryable HTTP/network errors
-            CapsolverError::HttpRequest { .. } => true,
+            CapsolverError::HttpRequest(_) => true,
             // Timeouts are considered retryable
             CapsolverError::SolutionTimeout { .. } => true,
             // API errors are retryable based on error code
-            CapsolverError::Api { error } => error.error_code.is_retryable(),
+            CapsolverError::Api(error) => error.error_code.is_retryable(),
             // Non-retryable errors
-            CapsolverError::BuildHttpClient { .. } | CapsolverError::ParseResponse { .. } => false,
+            CapsolverError::BuildHttpClient(_) | CapsolverError::ParseResponse(_) => false,
         }
     }
 }

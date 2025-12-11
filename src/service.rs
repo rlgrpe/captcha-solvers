@@ -1,35 +1,30 @@
 use crate::errors::RetryableError;
 use crate::provider::Provider;
 use crate::types::TaskId;
-use snafu::Snafu;
 use std::error::Error as StdError;
 use std::fmt::{Debug, Display};
 use std::future::Future;
 use std::time::{Duration, Instant};
+use thiserror::Error;
 
-#[cfg(feature = "tracing")]
-use snafu::Report;
 #[cfg(feature = "tracing")]
 use tracing::{error, info, warn, Span};
 
 /// Service-level errors that wrap provider errors
-#[derive(Debug, Snafu)]
+#[derive(Debug, Error)]
 pub enum ServiceError<E: StdError + 'static> {
-    #[snafu(display("Captcha provider error"))]
+    #[error("Captcha provider error: {source}")]
     Provider {
+        #[source]
         source: E,
         is_retryable: bool,
     },
 
-    #[snafu(display(
-        "Timeout waiting for captcha solution after {:.1}s; Task id: {}",
-        timeout.as_secs_f64(),
-        task_id
-    ))]
-    SolutionTimeout {
-        timeout: Duration,
-        task_id: TaskId,
-    },
+    #[error(
+        "Timeout waiting for captcha solution after {:.1}s; Task id: {task_id}",
+        timeout.as_secs_f64()
+    )]
+    SolutionTimeout { timeout: Duration, task_id: TaskId },
 }
 
 impl<E: StdError + 'static> RetryableError for ServiceError<E> {
@@ -208,7 +203,7 @@ where
                     // Permanent error - return immediately
                     #[cfg(feature = "tracing")]
                     error!(
-                        error = %Report::from_error(&e),
+                        error = %e,
                         "Permanent error while polling for captcha solution"
                     );
                     return Err(ServiceError::Provider {
@@ -220,7 +215,7 @@ where
                     // Transient error - log and continue
                     #[cfg(feature = "tracing")]
                     warn!(
-                        error = %Report::from_error(&_e),
+                        error = %_e,
                         "Transient error while polling for captcha solution"
                     );
                 }
