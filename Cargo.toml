@@ -1,0 +1,37 @@
+[package]
+name = "captcha-solvers"
+version = "0.1.0"
+edition = "2024"
+description = "Generic captcha solving library with provider abstraction"
+license = "MIT"
+
+[features]
+default = ["capsolver", "tracing"]
+capsolver = []
+# Enable tracing instrumentation
+tracing = ["dep:tracing", "dep:tracing-opentelemetry", "dep:opentelemetry"]
+
+[dependencies]
+# Core
+tokio = { version = "1.44.1", features = ["time"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+snafu = { version = "0.8.9", features = ["backtrace"] }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json"] }
+reqwest-middleware = { version = "0.4", features = ["json"] }
+url = { version = "2.5", features = ["serde"] }
+secrecy = { version = "0.10", features = ["serde"] }
+
+# Retry logic
+backon = "1.5"
+
+# Tracing (optional)
+tracing = { version = "0.1", optional = true }
+tracing-opentelemetry = { version = "0.31", optional = true }
+opentelemetry = { version = "0.30", features = ["trace"], optional = true }
+
+[dev-dependencies]
+tokio = { version = "1.44.1", features = ["full", "macros"] }
+wiremock = "0.6"
