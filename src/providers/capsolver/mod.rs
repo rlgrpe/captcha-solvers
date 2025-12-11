@@ -109,3 +109,6 @@ pub use types::{CapsolverTask, TurnstileMetadata};
 pub use types::{
     CapsolverSolution, CloudflareChallengeSolution, ReCaptchaSolution, TurnstileSolution,
 };
+
+// Re-export proxy types for convenience (also available at crate root)
+pub use crate::proxy::{ProxyConfig, ProxyType};

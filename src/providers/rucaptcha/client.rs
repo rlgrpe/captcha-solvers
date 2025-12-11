@@ -13,19 +13,19 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug;
 
-/// Default RuCaptcha API URL
-pub const DEFAULT_API_URL: &str = "https://api.rucaptcha.com";
-
-/// API endpoint paths
-const CREATE_TASK_PATH: &str = "createTask";
-const GET_TASK_RESULT_PATH: &str = "getTaskResult";
-
 #[cfg(feature = "tracing")]
 use opentelemetry::trace::Status;
 #[cfg(feature = "tracing")]
 use tracing::Span;
 #[cfg(feature = "tracing")]
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+/// Default RuCaptcha API URL
+pub const DEFAULT_API_URL: &str = "https://api.rucaptcha.com";
+
+/// API endpoint paths
+const CREATE_TASK_PATH: &str = "createTask";
+const GET_TASK_RESULT_PATH: &str = "getTaskResult";
 
 /// RuCaptcha HTTP client
 ///

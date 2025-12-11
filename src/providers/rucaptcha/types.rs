@@ -1,7 +1,49 @@
 //! Task and solution types for the RuCaptcha API.
 
-use serde::{Deserialize, Serialize};
+use crate::proxy::{ProxyConfig, ProxyType};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::Display;
+
+/// Deserialize a value that can be either a string or a number into a String
+fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::String(s) => Ok(s),
+        serde_json::Value::Number(n) => Ok(n.to_string()),
+        _ => Err(D::Error::custom("expected string or number")),
+    }
+}
+
+/// Serialize a string as a number if it's numeric, otherwise as a string
+fn serialize_string_as_number_if_possible<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    // Try to parse as u64 first (most common for task IDs)
+    if let Ok(n) = value.parse::<u64>() {
+        return serializer.serialize_u64(n);
+    }
+    // Fall back to string
+    serializer.serialize_str(value)
+}
+
+/// Serialize ProxyType field for serde (RuCaptcha uses lowercase)
+fn serialize_proxy_type_field<S>(proxy_type: &ProxyType, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let type_str = match proxy_type {
+        // RuCaptcha only supports http, socks4, socks5 (not https separately)
+        ProxyType::Http | ProxyType::Https => "http",
+        ProxyType::Socks4 => "socks4",
+        ProxyType::Socks5 => "socks5",
+    };
+    serializer.serialize_str(type_str)
+}
 
 // ============================================================================
 // Task Types
@@ -55,7 +97,7 @@ pub enum RucaptchaTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         // Proxy fields
-        #[serde(rename = "proxyType")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,
@@ -105,7 +147,7 @@ pub enum RucaptchaTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         // Proxy fields
-        #[serde(rename = "proxyType")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,
@@ -166,7 +208,7 @@ pub enum RucaptchaTask {
         #[serde(skip_serializing_if = "Option::is_none")]
         pagedata: Option<String>,
         // Proxy fields
-        #[serde(rename = "proxyType")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,
@@ -177,67 +219,6 @@ pub enum RucaptchaTask {
         #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
         proxy_password: Option<String>,
     },
-}
-
-/// Proxy type for tasks requiring custom proxy
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum ProxyType {
-    Http,
-    Socks4,
-    Socks5,
-}
-
-/// Proxy configuration for tasks
-#[derive(Debug, Clone)]
-pub struct ProxyConfig {
-    pub proxy_type: ProxyType,
-    pub address: String,
-    pub port: u16,
-    pub login: Option<String>,
-    pub password: Option<String>,
-}
-
-impl ProxyConfig {
-    /// Create a new HTTP proxy configuration
-    pub fn http(address: impl Into<String>, port: u16) -> Self {
-        Self {
-            proxy_type: ProxyType::Http,
-            address: address.into(),
-            port,
-            login: None,
-            password: None,
-        }
-    }
-
-    /// Create a new SOCKS4 proxy configuration
-    pub fn socks4(address: impl Into<String>, port: u16) -> Self {
-        Self {
-            proxy_type: ProxyType::Socks4,
-            address: address.into(),
-            port,
-            login: None,
-            password: None,
-        }
-    }
-
-    /// Create a new SOCKS5 proxy configuration
-    pub fn socks5(address: impl Into<String>, port: u16) -> Self {
-        Self {
-            proxy_type: ProxyType::Socks5,
-            address: address.into(),
-            port,
-            login: None,
-            password: None,
-        }
-    }
-
-    /// Add authentication credentials
-    pub fn with_auth(mut self, login: impl Into<String>, password: impl Into<String>) -> Self {
-        self.login = Some(login.into());
-        self.password = Some(password.into());
-        self
-    }
 }
 
 /// Turnstile metadata for challenge pages
@@ -571,6 +552,7 @@ impl TurnstileSolution {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CreateTaskData {
+    #[serde(deserialize_with = "deserialize_string_or_number")]
     pub task_id: String,
 }
 
@@ -596,6 +578,7 @@ pub(crate) struct CreateTaskRequest<'a> {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GetTaskResultRequest<'a> {
     pub(crate) client_key: &'a str,
+    #[serde(serialize_with = "serialize_string_as_number_if_possible")]
     pub(crate) task_id: &'a str,
 }
 
@@ -731,5 +714,44 @@ mod tests {
         let proxy = proxy.with_auth("user", "pass");
         assert_eq!(proxy.login.as_deref(), Some("user"));
         assert_eq!(proxy.password.as_deref(), Some("pass"));
+    }
+
+    #[test]
+    fn test_create_task_data_numeric_task_id() {
+        // RuCaptcha returns taskId as a number, not a string
+        let json = r#"{"errorId":0,"taskId":54137240716}"#;
+        let data: CreateTaskData = serde_json::from_str(json).unwrap();
+        assert_eq!(data.task_id, "54137240716");
+    }
+
+    #[test]
+    fn test_create_task_data_string_task_id() {
+        // But we should also accept string format
+        let json = r#"{"errorId":0,"taskId":"54137240716"}"#;
+        let data: CreateTaskData = serde_json::from_str(json).unwrap();
+        assert_eq!(data.task_id, "54137240716");
+    }
+
+    #[test]
+    fn test_get_task_result_request_numeric_serialization() {
+        // When task_id is numeric, it should serialize as a number
+        let request = GetTaskResultRequest {
+            client_key: "test-key",
+            task_id: "54137240716",
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("\"taskId\":54137240716"));
+        assert!(!json.contains("\"taskId\":\"54137240716\"")); // Should NOT be a string
+    }
+
+    #[test]
+    fn test_get_task_result_request_string_serialization() {
+        // When task_id is not numeric, it should serialize as a string
+        let request = GetTaskResultRequest {
+            client_key: "test-key",
+            task_id: "abc-123-def",
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("\"taskId\":\"abc-123-def\""));
     }
 }

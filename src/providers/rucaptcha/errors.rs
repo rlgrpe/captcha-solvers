@@ -183,7 +183,7 @@ pub struct RucaptchaApiError {
     pub error_id: u32,
     pub error_code: RucaptchaErrorCode,
     #[serde(default, alias = "errorDescription")]
-    pub description: Option<String>,
+    pub error_description: Option<String>,
 }
 
 impl fmt::Display for RucaptchaApiError {
@@ -193,7 +193,7 @@ impl fmt::Display for RucaptchaApiError {
             "RuCaptcha Error [{}]: {} - {}",
             self.error_id,
             self.error_code,
-            self.description
+            self.error_description
                 .clone()
                 .unwrap_or_else(|| "No description".to_string())
         )

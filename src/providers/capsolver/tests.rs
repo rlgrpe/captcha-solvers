@@ -64,7 +64,7 @@ fn error_response(error_code: &str, description: &str) -> Value {
     json!({
         "errorId": 1,
         "errorCode": error_code,
-        "description": description
+        "errorDescription": description
     })
 }
 
@@ -179,7 +179,7 @@ async fn test_get_task_result_api_error() {
         CapsolverError::Api(error) => {
             assert_eq!(error.error_id, 1);
             assert_eq!(error.error_code, CapsolverErrorCode::TaskIdInvalid);
-            assert_eq!(error.description, Some("Task ID is invalid".to_string()));
+            assert_eq!(error.error_description, Some("Task ID is invalid".to_string()));
         }
         _ => panic!("Expected Api error"),
     }
@@ -222,7 +222,7 @@ fn test_error_code_retryability() {
     assert!(!CapsolverErrorCode::KeyDeniedAccess.is_retryable());
     assert!(!CapsolverErrorCode::InvalidTaskData.is_retryable());
     assert!(!CapsolverErrorCode::TaskIdInvalid.is_retryable());
-    assert!(!CapsolverErrorCode::Unknown.is_retryable());
+    assert!(!CapsolverErrorCode::Other("SOME_NEW_ERROR".to_string()).is_retryable());
 }
 
 // =============================================================================
@@ -249,7 +249,7 @@ fn test_capsolver_response_deserialization_error() {
     let json = r#"{
         "errorId": 1,
         "errorCode": "ERROR_ZERO_BALANCE",
-        "description": "Error Description"
+        "errorDescription": "Error Description"
     }"#;
 
     let response: CapsolverResponse<CreateTaskData> = serde_json::from_str(json).unwrap();
@@ -257,7 +257,7 @@ fn test_capsolver_response_deserialization_error() {
     let error = response.into_result().unwrap_err();
     assert_eq!(error.error_id, 1);
     assert_eq!(error.error_code, CapsolverErrorCode::ZeroBalance);
-    assert_eq!(error.description, Some("Error Description".to_string()));
+    assert_eq!(error.error_description, Some("Error Description".to_string()));
 }
 
 #[test]

@@ -123,7 +123,10 @@ pub use errors::{RucaptchaApiError, RucaptchaError, RucaptchaErrorCode};
 pub use provider::RucaptchaProvider;
 
 // Tasks
-pub use types::{ProxyConfig, ProxyType, RucaptchaTask, TurnstileMetadata};
+pub use types::{RucaptchaTask, TurnstileMetadata};
 
 // Solutions
 pub use types::{ReCaptchaSolution, RucaptchaSolution, TurnstileSolution};
+
+// Re-export proxy types for convenience (also available at crate root)
+pub use crate::proxy::{ProxyConfig, ProxyType};

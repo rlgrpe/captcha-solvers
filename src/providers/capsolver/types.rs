@@ -1,6 +1,21 @@
+use crate::proxy::{ProxyConfig, ProxyType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
+
+/// Serialize ProxyType field for serde
+fn serialize_proxy_type_field<S>(proxy_type: &ProxyType, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let type_str = match proxy_type {
+        ProxyType::Http => "http",
+        ProxyType::Https => "https",
+        ProxyType::Socks4 => "socks4",
+        ProxyType::Socks5 => "socks5",
+    };
+    serializer.serialize_str(type_str)
+}
 
 // ============================================================================
 // Task Types
@@ -38,8 +53,6 @@ pub enum CapsolverTask {
         website_url: String,
         #[serde(rename = "websiteKey")]
         website_key: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        proxy: Option<String>,
         #[serde(rename = "pageAction", skip_serializing_if = "Option::is_none")]
         page_action: Option<String>,
         #[serde(rename = "enterprisePayload", skip_serializing_if = "Option::is_none")]
@@ -48,6 +61,17 @@ pub enum CapsolverTask {
         is_invisible: Option<bool>,
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
+        // Proxy fields
+        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        proxy_type: ProxyType,
+        #[serde(rename = "proxyAddress")]
+        proxy_address: String,
+        #[serde(rename = "proxyPort")]
+        proxy_port: u16,
+        #[serde(rename = "proxyLogin", skip_serializing_if = "Option::is_none")]
+        proxy_login: Option<String>,
+        #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
+        proxy_password: Option<String>,
     },
 
     /// ReCaptcha V2 Enterprise using server's built-in proxy
@@ -75,12 +99,21 @@ pub enum CapsolverTask {
         website_url: String,
         #[serde(rename = "websiteKey")]
         website_key: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        proxy: Option<String>,
         #[serde(rename = "pageAction", skip_serializing_if = "Option::is_none")]
         page_action: Option<String>,
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
+        // Proxy fields
+        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        proxy_type: ProxyType,
+        #[serde(rename = "proxyAddress")]
+        proxy_address: String,
+        #[serde(rename = "proxyPort")]
+        proxy_port: u16,
+        #[serde(rename = "proxyLogin", skip_serializing_if = "Option::is_none")]
+        proxy_login: Option<String>,
+        #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
+        proxy_password: Option<String>,
     },
 
     /// ReCaptcha V3 using server's built-in proxy
@@ -101,14 +134,23 @@ pub enum CapsolverTask {
         website_url: String,
         #[serde(rename = "websiteKey")]
         website_key: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        proxy: Option<String>,
         #[serde(rename = "pageAction", skip_serializing_if = "Option::is_none")]
         page_action: Option<String>,
         #[serde(rename = "enterprisePayload", skip_serializing_if = "Option::is_none")]
         enterprise_payload: Option<HashMap<String, serde_json::Value>>,
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
+        // Proxy fields
+        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        proxy_type: ProxyType,
+        #[serde(rename = "proxyAddress")]
+        proxy_address: String,
+        #[serde(rename = "proxyPort")]
+        proxy_port: u16,
+        #[serde(rename = "proxyLogin", skip_serializing_if = "Option::is_none")]
+        proxy_login: Option<String>,
+        #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
+        proxy_password: Option<String>,
     },
 
     /// ReCaptcha V3 Enterprise using server's built-in proxy
@@ -145,13 +187,22 @@ pub enum CapsolverTask {
     AntiCloudflareTask {
         #[serde(rename = "websiteURL")]
         website_url: String,
-        /// Static or Sticky proxy (not Rotating)
-        proxy: String,
         #[serde(rename = "userAgent", skip_serializing_if = "Option::is_none")]
         user_agent: Option<String>,
         /// Response HTML from target website (typically contains "Just a moment...")
         #[serde(skip_serializing_if = "Option::is_none")]
         html: Option<String>,
+        // Proxy fields (static or sticky proxy, not rotating)
+        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        proxy_type: ProxyType,
+        #[serde(rename = "proxyAddress")]
+        proxy_address: String,
+        #[serde(rename = "proxyPort")]
+        proxy_port: u16,
+        #[serde(rename = "proxyLogin", skip_serializing_if = "Option::is_none")]
+        proxy_login: Option<String>,
+        #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
+        proxy_password: Option<String>,
     },
 }
 
@@ -220,16 +271,20 @@ impl CapsolverTask {
     pub fn recaptcha_v2_enterprise_with_proxy(
         website_url: impl Into<String>,
         website_key: impl Into<String>,
-        proxy: impl Into<String>,
+        proxy: ProxyConfig,
     ) -> Self {
         Self::ReCaptchaV2EnterpriseTask {
             website_url: website_url.into(),
             website_key: website_key.into(),
-            proxy: Some(proxy.into()),
             page_action: None,
             enterprise_payload: None,
             is_invisible: None,
             api_domain: None,
+            proxy_type: proxy.proxy_type,
+            proxy_address: proxy.address,
+            proxy_port: proxy.port,
+            proxy_login: proxy.login,
+            proxy_password: proxy.password,
         }
     }
 
@@ -268,14 +323,18 @@ impl CapsolverTask {
     pub fn recaptcha_v3_with_proxy(
         website_url: impl Into<String>,
         website_key: impl Into<String>,
-        proxy: impl Into<String>,
+        proxy: ProxyConfig,
     ) -> Self {
         Self::ReCaptchaV3Task {
             website_url: website_url.into(),
             website_key: website_key.into(),
-            proxy: Some(proxy.into()),
             page_action: None,
             api_domain: None,
+            proxy_type: proxy.proxy_type,
+            proxy_address: proxy.address,
+            proxy_port: proxy.port,
+            proxy_login: proxy.login,
+            proxy_password: proxy.password,
         }
     }
 
@@ -297,15 +356,19 @@ impl CapsolverTask {
     pub fn recaptcha_v3_enterprise_with_proxy(
         website_url: impl Into<String>,
         website_key: impl Into<String>,
-        proxy: impl Into<String>,
+        proxy: ProxyConfig,
     ) -> Self {
         Self::ReCaptchaV3EnterpriseTask {
             website_url: website_url.into(),
             website_key: website_key.into(),
-            proxy: Some(proxy.into()),
             page_action: None,
             enterprise_payload: None,
             api_domain: None,
+            proxy_type: proxy.proxy_type,
+            proxy_address: proxy.address,
+            proxy_port: proxy.port,
+            proxy_login: proxy.login,
+            proxy_password: proxy.password,
         }
     }
 
@@ -345,27 +408,35 @@ impl CapsolverTask {
     /// Create a Cloudflare Challenge task (requires proxy)
     pub fn cloudflare_challenge(
         website_url: impl Into<String>,
-        proxy: impl Into<String>,
+        proxy: ProxyConfig,
     ) -> Self {
         Self::AntiCloudflareTask {
             website_url: website_url.into(),
-            proxy: proxy.into(),
             user_agent: None,
             html: None,
+            proxy_type: proxy.proxy_type,
+            proxy_address: proxy.address,
+            proxy_port: proxy.port,
+            proxy_login: proxy.login,
+            proxy_password: proxy.password,
         }
     }
 
     /// Create a Cloudflare Challenge task with user agent
     pub fn cloudflare_challenge_with_user_agent(
         website_url: impl Into<String>,
-        proxy: impl Into<String>,
+        proxy: ProxyConfig,
         user_agent: impl Into<String>,
     ) -> Self {
         Self::AntiCloudflareTask {
             website_url: website_url.into(),
-            proxy: proxy.into(),
             user_agent: Some(user_agent.into()),
             html: None,
+            proxy_type: proxy.proxy_type,
+            proxy_address: proxy.address,
+            proxy_port: proxy.port,
+            proxy_login: proxy.login,
+            proxy_password: proxy.password,
         }
     }
 }
@@ -400,10 +471,8 @@ impl Display for CapsolverTask {
 pub enum CapsolverSolution {
     /// ReCaptcha solution (V2 or V3)
     ReCaptcha(ReCaptchaSolution),
-    /// Turnstile solution
+    /// Turnstile or Cloudflare Challenge solution
     Turnstile(TurnstileSolution),
-    /// Cloudflare Challenge solution
-    CloudflareChallenge(CloudflareChallengeSolution),
 }
 
 impl CapsolverSolution {
@@ -423,7 +492,7 @@ impl CapsolverSolution {
         }
     }
 
-    /// Try to extract Turnstile solution
+    /// Try to extract Turnstile/Cloudflare Challenge solution
     pub fn as_turnstile(&self) -> Option<&TurnstileSolution> {
         match self {
             Self::Turnstile(solution) => Some(solution),
@@ -431,7 +500,7 @@ impl CapsolverSolution {
         }
     }
 
-    /// Extract Turnstile solution, panics if not Turnstile
+    /// Extract Turnstile/Cloudflare Challenge solution, panics if not Turnstile
     pub fn into_turnstile(self) -> TurnstileSolution {
         match self {
             Self::Turnstile(solution) => solution,
@@ -439,20 +508,14 @@ impl CapsolverSolution {
         }
     }
 
-    /// Try to extract Cloudflare Challenge solution
-    pub fn as_cloudflare_challenge(&self) -> Option<&CloudflareChallengeSolution> {
-        match self {
-            Self::CloudflareChallenge(solution) => Some(solution),
-            _ => None,
-        }
+    /// Alias for `as_turnstile` - Cloudflare Challenge uses the same solution type
+    pub fn as_cloudflare_challenge(&self) -> Option<&TurnstileSolution> {
+        self.as_turnstile()
     }
 
-    /// Extract Cloudflare Challenge solution, panics if not CloudflareChallenge
-    pub fn into_cloudflare_challenge(self) -> CloudflareChallengeSolution {
-        match self {
-            Self::CloudflareChallenge(solution) => solution,
-            _ => panic!("Expected CloudflareChallenge solution"),
-        }
+    /// Alias for `into_turnstile` - Cloudflare Challenge uses the same solution type
+    pub fn into_cloudflare_challenge(self) -> TurnstileSolution {
+        self.into_turnstile()
     }
 }
 
@@ -492,31 +555,16 @@ impl ReCaptchaSolution {
     }
 }
 
-/// Turnstile captcha solution
+/// Turnstile/Cloudflare Challenge solution
+///
+/// This type is used for both Turnstile and Cloudflare Challenge tasks.
+/// For Cloudflare Challenge, additional `cookies` field may be present.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TurnstileSolution {
-    /// The solved Turnstile token
+    /// The solved token (Turnstile token or cf_clearance)
     pub token: String,
-    /// User-Agent string used
-    #[serde(default)]
-    pub user_agent: Option<String>,
-}
-
-impl TurnstileSolution {
-    /// Get the Turnstile token
-    pub fn token(&self) -> &str {
-        &self.token
-    }
-}
-
-/// Cloudflare Challenge solution
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CloudflareChallengeSolution {
-    /// The cf_clearance cookie value
-    pub token: String,
-    /// Cookies map containing cf_clearance
+    /// Cookies map containing cf_clearance (Cloudflare Challenge only)
     #[serde(default)]
     pub cookies: Option<HashMap<String, String>>,
     /// User-Agent string used (must match your requests)
@@ -524,19 +572,22 @@ pub struct CloudflareChallengeSolution {
     pub user_agent: Option<String>,
 }
 
-impl CloudflareChallengeSolution {
-    /// Get the cf_clearance token
+impl TurnstileSolution {
+    /// Get the token
     pub fn token(&self) -> &str {
         &self.token
     }
 
-    /// Get the cf_clearance cookie value from the cookies map
+    /// Get the cf_clearance cookie value from the cookies map (Cloudflare Challenge only)
     pub fn cf_clearance(&self) -> Option<&str> {
         self.cookies
             .as_ref()
             .and_then(|c| c.get("cf_clearance").map(|s| s.as_str()))
     }
 }
+
+/// Type alias for backwards compatibility
+pub type CloudflareChallengeSolution = TurnstileSolution;
 
 // ============================================================================
 // Internal Types (Request/Response)
@@ -633,10 +684,13 @@ mod tests {
 
     #[test]
     fn test_cloudflare_challenge_serialization() {
-        let task = CapsolverTask::cloudflare_challenge("https://example.com", "http://proxy:8080");
+        let proxy = ProxyConfig::http("proxy.example.com", 8080);
+        let task = CapsolverTask::cloudflare_challenge("https://example.com", proxy);
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("AntiCloudflareTask"));
-        assert!(json.contains("proxy"));
+        assert!(json.contains("proxyType"));
+        assert!(json.contains("proxyAddress"));
+        assert!(json.contains("proxyPort"));
     }
 
     #[test]
@@ -694,9 +748,22 @@ mod tests {
             CapsolverTask::turnstile("url", "key").to_string(),
             "Turnstile"
         );
+        let proxy = ProxyConfig::http("proxy", 8080);
         assert_eq!(
-            CapsolverTask::cloudflare_challenge("url", "proxy").to_string(),
+            CapsolverTask::cloudflare_challenge("url", proxy).to_string(),
             "CloudflareChallenge"
         );
+    }
+
+    #[test]
+    fn test_proxy_serialization() {
+        let proxy = ProxyConfig::socks5("192.168.1.1", 1080).with_auth("user", "pass");
+        let task = CapsolverTask::recaptcha_v3_with_proxy("https://example.com", "key", proxy);
+        let json = serde_json::to_string(&task).unwrap();
+        assert!(json.contains("\"proxyType\":\"socks5\""));
+        assert!(json.contains("\"proxyAddress\":\"192.168.1.1\""));
+        assert!(json.contains("\"proxyPort\":1080"));
+        assert!(json.contains("\"proxyLogin\":\"user\""));
+        assert!(json.contains("\"proxyPassword\":\"pass\""));
     }
 }

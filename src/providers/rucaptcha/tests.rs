@@ -64,7 +64,7 @@ fn error_response(error_code: &str, description: &str) -> Value {
     json!({
         "errorId": 1,
         "errorCode": error_code,
-        "description": description
+        "errorDescription": description
     })
 }
 
@@ -178,7 +178,7 @@ async fn test_get_task_result_api_error() {
         RucaptchaError::Api(error) => {
             assert_eq!(error.error_id, 1);
             assert_eq!(error.error_code, RucaptchaErrorCode::NoSuchCaptchaId);
-            assert_eq!(error.description, Some("Task ID is invalid".to_string()));
+            assert_eq!(error.error_description, Some("Task ID is invalid".to_string()));
         }
         _ => panic!("Expected Api error"),
     }
@@ -247,7 +247,7 @@ fn test_rucaptcha_response_deserialization_error() {
     let json = r#"{
         "errorId": 1,
         "errorCode": "ERROR_ZERO_BALANCE",
-        "description": "Error Description"
+        "errorDescription": "Error Description"
     }"#;
 
     let response: RucaptchaResponse<CreateTaskData> = serde_json::from_str(json).unwrap();
@@ -255,7 +255,7 @@ fn test_rucaptcha_response_deserialization_error() {
     let error = response.into_result().unwrap_err();
     assert_eq!(error.error_id, 1);
     assert_eq!(error.error_code, RucaptchaErrorCode::ZeroBalance);
-    assert_eq!(error.description, Some("Error Description".to_string()));
+    assert_eq!(error.error_description, Some("Error Description".to_string()));
 }
 
 #[test]

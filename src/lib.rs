@@ -144,6 +144,7 @@
 pub mod errors;
 pub mod provider;
 pub mod providers;
+pub mod proxy;
 pub mod retry;
 pub mod service;
 pub mod types;
@@ -151,6 +152,7 @@ pub mod types;
 // Re-export commonly used types at the crate root
 pub use errors::RetryableError;
 pub use provider::{Provider, RetryableProvider};
+pub use proxy::{ProxyConfig, ProxyType};
 pub use service::{
     CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ServiceError,
 };
