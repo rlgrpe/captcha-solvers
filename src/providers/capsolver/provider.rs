@@ -1,27 +1,25 @@
 use super::client::CapsolverClient;
 use super::errors::CapsolverError;
-use super::types::{CapsolverSolution, CapsolverTask, TurnstileSolution};
+use super::types::{CapsolverSolution, CapsolverTask};
 use crate::provider::Provider;
 use crate::types::TaskId;
 
 /// Capsolver provider implementation
 ///
-/// This wraps the CapsolverClient and implements the generic Provider trait,
-/// allowing it to be used with `CaptchaSolverService` and `RetryableProvider`.
+/// This wraps the [`CapsolverClient`] and implements the generic [`Provider`] trait,
+/// allowing it to be used with [`CaptchaSolverService`](crate::CaptchaSolverService)
+/// and [`RetryableProvider`](crate::RetryableProvider).
 ///
 /// # Example
 ///
 /// ```rust,ignore
 /// use captcha_solvers::providers::capsolver::{CapsolverClient, CapsolverProvider, CapsolverTask};
-/// use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceConfig, RetryableProvider};
+/// use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait};
 /// use std::time::Duration;
 ///
-/// let client = CapsolverClient::new(url, api_key)?;
+/// let client = CapsolverClient::new("api_key")?;
 /// let provider = CapsolverProvider::new(client);
-/// let retryable = RetryableProvider::new(provider);
-///
-/// let config = CaptchaSolverServiceConfig::default();
-/// let service = CaptchaSolverService::new(retryable, config);
+/// let service = CaptchaSolverService::with_provider(provider);
 ///
 /// let task = CapsolverTask::turnstile("https://example.com", "site_key");
 /// let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
@@ -43,6 +41,16 @@ impl CapsolverProvider {
     /// Get reference to the inner client
     pub fn client(&self) -> &CapsolverClient {
         &self.client
+    }
+
+    /// Get mutable reference to the inner client
+    pub fn client_mut(&mut self) -> &mut CapsolverClient {
+        &mut self.client
+    }
+
+    /// Consume the provider and return the inner client
+    pub fn into_client(self) -> CapsolverClient {
+        self.client
     }
 }
 
@@ -71,10 +79,6 @@ impl Provider for CapsolverProvider {
         &self,
         task_id: &TaskId,
     ) -> Result<Option<Self::Solution>, Self::Error> {
-        // For now, we only support Turnstile
-        // When we add more captcha types, we'll need to track the task type
-        let solution: Option<TurnstileSolution> = self.client.get_task_result(task_id).await?;
-
-        Ok(solution.map(CapsolverSolution::Turnstile))
+        self.client.get_task_result(task_id).await
     }
 }

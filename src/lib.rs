@@ -3,23 +3,28 @@
 //! A generic captcha solving library with provider abstraction.
 //!
 //! This library provides a unified interface for working with different captcha
-//! solving services. Each provider defines its own task and solution types,
-//! enabling type-safe interactions.
+//! solving services. It supports multiple captcha types including ReCaptcha V2/V3,
+//! Cloudflare Turnstile, and Cloudflare Challenge.
+//!
+//! ## Supported Captcha Types
+//!
+//! - **ReCaptcha V2** - Standard and Enterprise, visible and invisible
+//! - **ReCaptcha V3** - Standard and Enterprise with action support
+//! - **Cloudflare Turnstile** - With optional metadata
+//! - **Cloudflare Challenge** - Full page challenge bypass
 //!
 //! ## Architecture
 //!
-//! The library follows a layered architecture:
-//!
 //! ```text
 //! CaptchaSolverService<P>
-//!         |
-//!         v
+//!         │
+//!         ▼
 //! RetryableProvider<P>  (optional retry wrapper)
-//!         |
-//!         v
+//!         │
+//!         ▼
 //!     Provider          (trait implemented by each provider)
-//!         |
-//!         v
+//!         │
+//!         ▼
 //!   Provider Client     (HTTP client for the specific service)
 //! ```
 //!
@@ -28,97 +33,106 @@
 //! - `capsolver` - Capsolver provider support (enabled by default)
 //! - `tracing` - OpenTelemetry tracing instrumentation (enabled by default)
 //!
-//! ## Example
+//! ## Quick Start
 //!
 //! ```rust,ignore
 //! use captcha_solvers::{
-//!     CaptchaSolverService, CaptchaSolverServiceConfig,
-//!     CaptchaSolverServiceTrait, RetryableProvider,
+//!     CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait,
 //!     providers::capsolver::{CapsolverClient, CapsolverProvider, CapsolverTask},
 //! };
 //! use std::time::Duration;
-//! use url::Url;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create the client
-//!     let url = Url::parse("https://api.capsolver.com")?;
-//!     let client = CapsolverClient::new(url, "your_api_key")?;
-//!
-//!     // Create the provider with retry support
+//!     // Create client (uses default API URL)
+//!     let client = CapsolverClient::new("your_api_key")?;
 //!     let provider = CapsolverProvider::new(client);
-//!     let retryable = RetryableProvider::new(provider);
-//!
-//!     // Create the service
-//!     let config = CaptchaSolverServiceConfig {
-//!         poll_interval: Duration::from_secs(3),
-//!     };
-//!     let service = CaptchaSolverService::new(retryable, config);
+//!     let service = CaptchaSolverService::with_provider(provider);
 //!
 //!     // Solve a Turnstile captcha
-//!     let task = CapsolverTask::turnstile(
-//!         "https://example.com",
-//!         "site_key_here",
-//!     );
-//!
+//!     let task = CapsolverTask::turnstile("https://example.com", "site_key");
 //!     let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
-//!     let turnstile = solution.into_turnstile();
-//!     println!("Token: {}", turnstile.token);
+//!     println!("Token: {}", solution.into_turnstile().token());
 //!
 //!     Ok(())
 //! }
 //! ```
 //!
-//! ## Implementing a Custom Provider
+//! ## Examples by Captcha Type
 //!
-//! To add support for a new captcha service, implement the `Provider` trait:
+//! ### ReCaptcha V2
+//! ```rust,ignore
+//! // Standard ReCaptcha V2
+//! let task = CapsolverTask::recaptcha_v2("https://example.com", "site_key");
+//!
+//! // Invisible ReCaptcha V2
+//! let task = CapsolverTask::recaptcha_v2_invisible("https://example.com", "site_key");
+//!
+//! // Enterprise with proxy
+//! let task = CapsolverTask::recaptcha_v2_enterprise_with_proxy(
+//!     "https://example.com",
+//!     "site_key",
+//!     "http://user:pass@proxy:8080"
+//! );
+//! ```
+//!
+//! ### ReCaptcha V3
+//! ```rust,ignore
+//! // Standard ReCaptcha V3
+//! let task = CapsolverTask::recaptcha_v3("https://example.com", "site_key");
+//!
+//! // With action parameter
+//! let task = CapsolverTask::recaptcha_v3_with_action(
+//!     "https://example.com",
+//!     "site_key",
+//!     "submit"
+//! );
+//! ```
+//!
+//! ### Cloudflare Turnstile
+//! ```rust,ignore
+//! use captcha_solvers::providers::capsolver::TurnstileMetadata;
+//!
+//! // Simple Turnstile
+//! let task = CapsolverTask::turnstile("https://example.com", "site_key");
+//!
+//! // With metadata
+//! let metadata = TurnstileMetadata {
+//!     action: Some("login".to_string()),
+//!     cdata: None,
+//! };
+//! let task = CapsolverTask::turnstile_with_metadata("https://example.com", "site_key", metadata);
+//! ```
+//!
+//! ### Cloudflare Challenge
+//! ```rust,ignore
+//! // Requires a static/sticky proxy (not rotating)
+//! let task = CapsolverTask::cloudflare_challenge(
+//!     "https://example.com",
+//!     "http://user:pass@proxy:8080"
+//! );
+//! ```
+//!
+//! ## Client Configuration
 //!
 //! ```rust,ignore
-//! use captcha_solvers::{Provider, TaskId, RetryableError};
+//! use captcha_solvers::providers::capsolver::{CapsolverClient, DEFAULT_API_URL};
+//! use url::Url;
 //!
-//! #[derive(Clone)]
-//! struct MyProvider { /* ... */ }
+//! // Simple: use default URL
+//! let client = CapsolverClient::new("api_key")?;
 //!
-//! #[derive(Clone)]
-//! enum MyTask {
-//!     Turnstile { url: String, key: String },
-//!     ReCaptcha { url: String, key: String },
-//! }
+//! // Custom URL
+//! let client = CapsolverClient::with_url(
+//!     Url::parse("https://custom-api.example.com")?,
+//!     "api_key"
+//! )?;
 //!
-//! #[derive(Debug)]
-//! struct MySolution { token: String }
-//!
-//! #[derive(Debug)]
-//! enum MyError { /* ... */ }
-//!
-//! impl std::fmt::Display for MyTask {
-//!     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//!         match self {
-//!             Self::Turnstile { .. } => write!(f, "Turnstile"),
-//!             Self::ReCaptcha { .. } => write!(f, "ReCaptcha"),
-//!         }
-//!     }
-//! }
-//!
-//! impl RetryableError for MyError {
-//!     fn is_retryable(&self) -> bool { false }
-//! }
-//!
-//! impl Provider for MyProvider {
-//!     type Task = MyTask;
-//!     type Solution = MySolution;
-//!     type Error = MyError;
-//!
-//!     async fn create_task(&self, task: Self::Task) -> Result<TaskId, Self::Error> {
-//!         // Implementation
-//!         todo!()
-//!     }
-//!
-//!     async fn get_task_result(&self, task_id: &TaskId) -> Result<Option<Self::Solution>, Self::Error> {
-//!         // Implementation
-//!         todo!()
-//!     }
-//! }
+//! // Full builder for advanced configuration
+//! let client = CapsolverClient::builder("api_key")
+//!     .url(Url::parse("https://custom-api.example.com")?)
+//!     .http_client(custom_http_client)
+//!     .build()?;
 //! ```
 
 pub mod errors;
@@ -131,5 +145,7 @@ pub mod types;
 // Re-export commonly used types at the crate root
 pub use errors::RetryableError;
 pub use provider::{Provider, RetryableProvider};
-pub use service::{CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ServiceError};
+pub use service::{
+    CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ServiceError,
+};
 pub use types::TaskId;

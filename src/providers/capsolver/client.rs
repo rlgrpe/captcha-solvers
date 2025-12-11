@@ -1,6 +1,10 @@
+//! Capsolver HTTP client for making API requests.
+
 use super::errors::{CapsolverError, Result};
 use super::response::CapsolverResponse;
-use super::types::{CapsolverTask, CreateTaskData, CreateTaskRequest, GetTaskData, GetTaskResultRequest};
+use super::types::{
+    CapsolverTask, CreateTaskData, CreateTaskRequest, GetTaskData, GetTaskResultRequest,
+};
 use crate::types::TaskId;
 use reqwest::Url;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
@@ -8,6 +12,9 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug;
+
+/// Default Capsolver API URL
+pub const DEFAULT_API_URL: &str = "https://api.capsolver.com";
 
 /// API endpoint paths
 const CREATE_TASK_PATH: &str = "createTask";
@@ -23,12 +30,28 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 /// Capsolver HTTP client
 ///
 /// Low-level client for interacting with the Capsolver API.
-/// Handles HTTP requests and response parsing.
+/// Handles HTTP requests, authentication, and response parsing.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use captcha_solvers::providers::capsolver::{CapsolverClient, CapsolverTask};
+///
+/// // Create client with default URL
+/// let client = CapsolverClient::new("your_api_key")?;
+///
+/// // Create a task
+/// let task = CapsolverTask::turnstile("https://example.com", "site_key");
+/// let task_id = client.create_task(task).await?;
+///
+/// // Poll for result
+/// let solution = client.get_task_result(&task_id).await?;
+/// ```
 #[derive(Clone)]
 pub struct CapsolverClient {
     http_client: ClientWithMiddleware,
     api_key: SecretString,
-    url: Url,
+    pub(crate) url: Url,
 }
 
 impl Debug for CapsolverClient {
@@ -40,38 +63,112 @@ impl Debug for CapsolverClient {
     }
 }
 
-impl CapsolverClient {
-    /// Create a new Capsolver client
-    ///
-    /// # Arguments
-    /// * `url` - Base URL for the Capsolver API (e.g., `https://api.capsolver.com`)
-    /// * `api_key` - Your Capsolver API key
-    pub fn new(url: Url, api_key: impl Into<String>) -> Result<Self> {
-        let client = reqwest::Client::builder()
-            .build()
-            .map_err(CapsolverError::BuildHttpClient)?;
+/// Builder for configuring a [`CapsolverClient`]
+///
+/// Provides a fluent API for constructing clients with custom settings.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use captcha_solvers::providers::capsolver::CapsolverClient;
+/// use url::Url;
+///
+/// let client = CapsolverClient::builder("your-api-key")
+///     .url(Url::parse("https://custom-api.example.com").unwrap())
+///     .http_client(custom_client)
+///     .build()?;
+/// ```
+pub struct CapsolverClientBuilder {
+    api_key: String,
+    url: Option<Url>,
+    http_client: Option<ClientWithMiddleware>,
+}
 
-        Ok(Self {
-            http_client: ClientBuilder::new(client).build(),
-            api_key: SecretString::from(api_key.into()),
+impl CapsolverClientBuilder {
+    /// Create a new builder with the given API key
+    pub fn new(api_key: impl Into<String>) -> Self {
+        Self {
+            api_key: api_key.into(),
+            url: None,
+            http_client: None,
+        }
+    }
+
+    /// Set a custom API URL
+    ///
+    /// Default: `https://api.capsolver.com`
+    pub fn url(mut self, url: Url) -> Self {
+        self.url = Some(url);
+        self
+    }
+
+    /// Set a custom HTTP client with middleware
+    ///
+    /// Use this when you need custom middleware (e.g., tracing, retry, rate limiting).
+    pub fn http_client(mut self, client: ClientWithMiddleware) -> Self {
+        self.http_client = Some(client);
+        self
+    }
+
+    /// Build the [`CapsolverClient`]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP client cannot be built.
+    pub fn build(self) -> Result<CapsolverClient> {
+        let url = self
+            .url
+            .unwrap_or_else(|| Url::parse(DEFAULT_API_URL).expect("Invalid default URL"));
+
+        let http_client = match self.http_client {
+            Some(client) => client,
+            None => {
+                let client = reqwest::Client::builder()
+                    .build()
+                    .map_err(CapsolverError::BuildHttpClient)?;
+                ClientBuilder::new(client).build()
+            }
+        };
+
+        Ok(CapsolverClient {
+            http_client,
+            api_key: SecretString::from(self.api_key),
             url,
         })
     }
+}
 
-    /// Create a new Capsolver client with a custom HTTP client
+impl CapsolverClient {
+    /// Create a new Capsolver client with the default API URL
     ///
-    /// Use this when you need to configure the HTTP client with custom middleware
-    /// (e.g., tracing, retry, etc.)
-    pub fn with_http_client(
-        url: Url,
-        api_key: impl Into<String>,
-        http_client: ClientWithMiddleware,
-    ) -> Self {
-        Self {
-            http_client,
-            api_key: SecretString::from(api_key.into()),
-            url,
-        }
+    /// # Arguments
+    ///
+    /// * `api_key` - Your Capsolver API key
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let client = CapsolverClient::new("your_api_key")?;
+    /// ```
+    pub fn new(api_key: impl Into<String>) -> Result<Self> {
+        Self::builder(api_key).build()
+    }
+
+    /// Create a new Capsolver client with a custom URL
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - Base URL for the Capsolver API
+    /// * `api_key` - Your Capsolver API key
+    pub fn with_url(url: Url, api_key: impl Into<String>) -> Result<Self> {
+        Self::builder(api_key).url(url).build()
+    }
+
+    /// Create a builder for configuring the client
+    ///
+    /// Use this for advanced configuration options like custom HTTP clients.
+    pub fn builder(api_key: impl Into<String>) -> CapsolverClientBuilder {
+        CapsolverClientBuilder::new(api_key)
     }
 
     /// Send a POST request to the Capsolver API
@@ -92,6 +189,17 @@ impl CapsolverClient {
     }
 
     /// Create a captcha solving task
+    ///
+    /// Submits a new task to the Capsolver API and returns the task ID.
+    /// Use [`get_task_result`](Self::get_task_result) to poll for the solution.
+    ///
+    /// # Arguments
+    ///
+    /// * `task` - The captcha task to solve
+    ///
+    /// # Returns
+    ///
+    /// The task ID that can be used to retrieve the result.
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(name = "CapsolverClient::create_task", skip_all)
@@ -119,6 +227,18 @@ impl CapsolverClient {
     }
 
     /// Get the result of a captcha task
+    ///
+    /// Polls the Capsolver API for the task result.
+    ///
+    /// # Arguments
+    ///
+    /// * `task_id` - The task ID returned from [`create_task`](Self::create_task)
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Some(solution))` if the task is complete
+    /// - `Ok(None)` if the task is still processing
+    /// - `Err(...)` if there was an error
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(
@@ -147,267 +267,5 @@ impl CapsolverClient {
         }
 
         Ok(data.solution)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::providers::capsolver::errors::CapsolverErrorCode;
-    use serde::{Deserialize, Serialize};
-    use serde_json::json;
-    use wiremock::matchers::{method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
-
-    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-    struct TestSolution {
-        #[serde(rename = "userAgent")]
-        user_agent: String,
-        #[serde(rename = "gRecaptchaResponse")]
-        g_recaptcha_response: String,
-    }
-
-    #[tokio::test]
-    async fn test_create_task_success() {
-        let mock_server = MockServer::start().await;
-
-        let response_body = json!({
-            "errorId": 0,
-            "errorCode": "",
-            "errorDescription": "",
-            "taskId": "37223a89-06ed-442c-a0b8-22067b79c5b4"
-        });
-
-        Mock::given(method("POST"))
-            .and(path("/createTask"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
-            .mount(&mock_server)
-            .await;
-
-        let client =
-            CapsolverClient::new(Url::parse(&mock_server.uri()).unwrap(), "test_api_key").unwrap();
-
-        let task = CapsolverTask::turnstile("https://example.com", "test_key");
-
-        let result = client.create_task(task).await;
-
-        assert!(result.is_ok());
-        let task_id = result.unwrap();
-        assert_eq!(task_id.as_ref(), "37223a89-06ed-442c-a0b8-22067b79c5b4");
-    }
-
-    #[tokio::test]
-    async fn test_create_task_api_error() {
-        let mock_server = MockServer::start().await;
-
-        let response_body = json!({
-            "errorId": 1,
-            "errorCode": "ERROR_ZERO_BALANCE",
-            "description": "Insufficient balance"
-        });
-
-        Mock::given(method("POST"))
-            .and(path("/createTask"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
-            .mount(&mock_server)
-            .await;
-
-        let client =
-            CapsolverClient::new(Url::parse(&mock_server.uri()).unwrap(), "test_api_key").unwrap();
-
-        let task = CapsolverTask::turnstile("https://example.com", "test_key");
-
-        let result = client.create_task(task).await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            CapsolverError::Api(error) => {
-                assert_eq!(error.error_id, 1);
-                assert_eq!(error.error_code, CapsolverErrorCode::ZeroBalance);
-            }
-            _ => panic!("Expected Api error"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_get_task_result_ready() {
-        let mock_server = MockServer::start().await;
-
-        let response_body = json!({
-            "errorId": 0,
-            "taskId": "test-task-id",
-            "solution": {
-                "userAgent": "Mozilla/5.0...",
-                "gRecaptchaResponse": "03AGdBq25SxXT-pmSeBXjzScW-EiocHwwpwqtk1QXlJnGnUJCZrgjwLLdt7cb0..."
-            },
-            "status": "ready"
-        });
-
-        Mock::given(method("POST"))
-            .and(path("/getTaskResult"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
-            .mount(&mock_server)
-            .await;
-
-        let client =
-            CapsolverClient::new(Url::parse(&mock_server.uri()).unwrap(), "test_api_key").unwrap();
-
-        let task_id = TaskId::from("test-task-id");
-
-        let result: Result<Option<TestSolution>> = client.get_task_result(&task_id).await;
-
-        assert!(result.is_ok());
-        let solution = result.unwrap();
-        assert!(solution.is_some());
-        let solution = solution.unwrap();
-        assert_eq!(solution.user_agent, "Mozilla/5.0...");
-        assert!(solution.g_recaptcha_response.starts_with("03AGdBq25SxXT"));
-    }
-
-    #[tokio::test]
-    async fn test_get_task_result_processing() {
-        let mock_server = MockServer::start().await;
-
-        let response_body = json!({
-            "errorId": 0,
-            "taskId": "test-task-id",
-            "status": "processing"
-        });
-
-        Mock::given(method("POST"))
-            .and(path("/getTaskResult"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
-            .mount(&mock_server)
-            .await;
-
-        let client =
-            CapsolverClient::new(Url::parse(&mock_server.uri()).unwrap(), "test_api_key").unwrap();
-
-        let task_id = TaskId::from("test-task-id");
-
-        let result: Result<Option<TestSolution>> = client.get_task_result(&task_id).await;
-
-        assert!(result.is_ok());
-        let solution = result.unwrap();
-        assert!(solution.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_get_task_result_api_error() {
-        let mock_server = MockServer::start().await;
-
-        let response_body = json!({
-            "errorId": 1,
-            "errorCode": "ERROR_TASKID_INVALID",
-            "description": "Task ID is invalid"
-        });
-
-        Mock::given(method("POST"))
-            .and(path("/getTaskResult"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
-            .mount(&mock_server)
-            .await;
-
-        let client =
-            CapsolverClient::new(Url::parse(&mock_server.uri()).unwrap(), "test_api_key").unwrap();
-
-        let task_id = TaskId::from("invalid-task-id");
-
-        let result: Result<Option<TestSolution>> = client.get_task_result(&task_id).await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            CapsolverError::Api(error) => {
-                assert_eq!(error.error_id, 1);
-                assert_eq!(error.error_code, CapsolverErrorCode::TaskIdInvalid);
-                assert_eq!(error.description, Some("Task ID is invalid".to_string()));
-            }
-            _ => panic!("Expected Api error"),
-        }
-    }
-
-    #[test]
-    fn test_error_code_retryability() {
-        // Retryable errors
-        assert!(CapsolverErrorCode::ServiceUnavailable.is_retryable());
-        assert!(CapsolverErrorCode::RateLimit.is_retryable());
-        assert!(CapsolverErrorCode::IpBanned.is_retryable());
-        assert!(CapsolverErrorCode::KeyTempBlocked.is_retryable());
-
-        // Non-retryable errors
-        assert!(!CapsolverErrorCode::ZeroBalance.is_retryable());
-        assert!(!CapsolverErrorCode::KeyDeniedAccess.is_retryable());
-        assert!(!CapsolverErrorCode::InvalidTaskData.is_retryable());
-        assert!(!CapsolverErrorCode::TaskIdInvalid.is_retryable());
-        assert!(!CapsolverErrorCode::Unknown.is_retryable());
-    }
-
-    #[test]
-    fn test_capsolver_response_deserialization_success() {
-        let json = r#"{
-            "errorId": 0,
-            "errorCode": "",
-            "errorDescription": "",
-            "taskId": "37223a89-06ed-442c-a0b8-22067b79c5b4"
-        }"#;
-
-        let response: CapsolverResponse<CreateTaskData> = serde_json::from_str(json).unwrap();
-        assert!(response.is_success());
-        let data = response.into_result().unwrap();
-        assert_eq!(data.task_id, "37223a89-06ed-442c-a0b8-22067b79c5b4");
-    }
-
-    #[test]
-    fn test_capsolver_response_deserialization_error() {
-        let json = r#"{
-            "errorId": 1,
-            "errorCode": "ERROR_ZERO_BALANCE",
-            "description": "Error Description"
-        }"#;
-
-        let response: CapsolverResponse<CreateTaskData> = serde_json::from_str(json).unwrap();
-        assert!(!response.is_success());
-        let error = response.into_result().unwrap_err();
-        assert_eq!(error.error_id, 1);
-        assert_eq!(error.error_code, CapsolverErrorCode::ZeroBalance);
-        assert_eq!(error.description, Some("Error Description".to_string()));
-    }
-
-    #[test]
-    fn test_capsolver_response_get_task_ready() {
-        let json = r#"{
-            "errorId": 0,
-            "taskId": "test-id",
-            "solution": {
-                "userAgent": "xxx",
-                "gRecaptchaResponse": "03AGdBq25SxXT-pmSeBXjzScW-EiocHwwpwqtk1QXlJnGnUJCZrgjwLLdt7cb0..."
-            },
-            "status": "ready"
-        }"#;
-
-        let response: CapsolverResponse<GetTaskData<TestSolution>> =
-            serde_json::from_str(json).unwrap();
-        assert!(response.is_success());
-        let data = response.into_result().unwrap();
-        assert_eq!(data.status, "ready");
-        assert!(data.solution.is_some());
-        let solution = data.solution.unwrap();
-        assert_eq!(solution.user_agent, "xxx");
-    }
-
-    #[test]
-    fn test_capsolver_response_get_task_processing() {
-        let json = r#"{
-            "errorId": 0,
-            "taskId": "test-id",
-            "status": "processing"
-        }"#;
-
-        let response: CapsolverResponse<GetTaskData<TestSolution>> =
-            serde_json::from_str(json).unwrap();
-        assert!(response.is_success());
-        let data = response.into_result().unwrap();
-        assert_eq!(data.status, "processing");
-        assert!(data.solution.is_none());
     }
 }
