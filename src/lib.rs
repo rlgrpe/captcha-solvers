@@ -6,12 +6,17 @@
 //! solving services. It supports multiple captcha types including ReCaptcha V2/V3,
 //! Cloudflare Turnstile, and Cloudflare Challenge.
 //!
+//! ## Supported Providers
+//!
+//! - **Capsolver** - <https://capsolver.com> (feature: `capsolver`)
+//! - **RuCaptcha** - <https://rucaptcha.com> (feature: `rucaptcha`)
+//!
 //! ## Supported Captcha Types
 //!
 //! - **ReCaptcha V2** - Standard and Enterprise, visible and invisible
 //! - **ReCaptcha V3** - Standard and Enterprise with action support
 //! - **Cloudflare Turnstile** - With optional metadata
-//! - **Cloudflare Challenge** - Full page challenge bypass
+//! - **Cloudflare Challenge** - Full page challenge bypass (Capsolver only)
 //!
 //! ## Architecture
 //!
@@ -31,6 +36,7 @@
 //! ## Features
 //!
 //! - `capsolver` - Capsolver provider support (enabled by default)
+//! - `rucaptcha` - RuCaptcha provider support
 //! - `tracing` - OpenTelemetry tracing instrumentation (enabled by default)
 //!
 //! ## Quick Start

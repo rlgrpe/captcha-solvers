@@ -8,6 +8,7 @@ license = "MIT"
 [features]
 default = ["capsolver", "tracing"]
 capsolver = []
+rucaptcha = []
 # Enable tracing instrumentation
 tracing = ["dep:tracing", "dep:tracing-opentelemetry", "dep:opentelemetry"]
 
