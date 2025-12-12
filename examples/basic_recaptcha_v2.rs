@@ -29,7 +29,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Solving ReCaptcha V2...");
 
     // Solve with 2 minute timeout
-    let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
+    let solution = service
+        .solve_captcha(task, Duration::from_secs(120))
+        .await?;
 
     // Extract the token
     let recaptcha = solution.into_recaptcha();

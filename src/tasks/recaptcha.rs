@@ -407,8 +407,7 @@ mod tests {
 
     #[test]
     fn test_recaptcha_v2_with_action() {
-        let task = ReCaptchaV2::new("https://example.com", "site-key")
-            .with_action("submit");
+        let task = ReCaptchaV2::new("https://example.com", "site-key").with_action("submit");
 
         assert_eq!(task.page_action, Some("submit".to_string()));
     }
@@ -428,8 +427,7 @@ mod tests {
     #[test]
     fn test_recaptcha_v2_with_proxy() {
         let proxy = ProxyConfig::http("192.168.1.1", 8080);
-        let task = ReCaptchaV2::new("https://example.com", "site-key")
-            .with_proxy(proxy.clone());
+        let task = ReCaptchaV2::new("https://example.com", "site-key").with_proxy(proxy.clone());
 
         assert!(task.has_proxy());
         assert_eq!(task.proxy().unwrap().address, "192.168.1.1");
@@ -438,8 +436,7 @@ mod tests {
 
     #[test]
     fn test_recaptcha_v2_with_all_options() {
-        let proxy = ProxyConfig::socks5("proxy.example.com", 1080)
-            .with_auth("user", "pass");
+        let proxy = ProxyConfig::socks5("proxy.example.com", 1080).with_auth("user", "pass");
 
         let task = ReCaptchaV2::new("https://example.com", "site-key")
             .invisible()
@@ -489,24 +486,21 @@ mod tests {
 
     #[test]
     fn test_recaptcha_v3_with_action() {
-        let task = ReCaptchaV3::new("https://example.com", "site-key")
-            .with_action("login");
+        let task = ReCaptchaV3::new("https://example.com", "site-key").with_action("login");
 
         assert_eq!(task.action(), Some("login"));
     }
 
     #[test]
     fn test_recaptcha_v3_with_min_score() {
-        let task = ReCaptchaV3::new("https://example.com", "site-key")
-            .with_min_score(0.9);
+        let task = ReCaptchaV3::new("https://example.com", "site-key").with_min_score(0.9);
 
         assert_eq!(task.min_score(), Some(0.9));
     }
 
     #[test]
     fn test_recaptcha_v3_enterprise() {
-        let task = ReCaptchaV3::new("https://example.com", "site-key")
-            .enterprise();
+        let task = ReCaptchaV3::new("https://example.com", "site-key").enterprise();
 
         assert!(task.is_enterprise());
     }

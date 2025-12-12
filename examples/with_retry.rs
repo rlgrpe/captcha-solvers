@@ -37,7 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Solving with automatic retry on transient failures...");
 
-    let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
+    let solution = service
+        .solve_captcha(task, Duration::from_secs(120))
+        .await?;
 
     let recaptcha = solution.into_recaptcha();
     println!("Solved! Token length: {}", recaptcha.token().len());

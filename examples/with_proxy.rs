@@ -40,9 +40,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .with_proxy(proxy);
 
-    println!("Solving ReCaptcha V2 with proxy {}:{}...", proxy_host, proxy_port);
+    println!(
+        "Solving ReCaptcha V2 with proxy {}:{}...",
+        proxy_host, proxy_port
+    );
 
-    let solution = service.solve_captcha(task, Duration::from_secs(180)).await?;
+    let solution = service
+        .solve_captcha(task, Duration::from_secs(180))
+        .await?;
 
     let recaptcha = solution.into_recaptcha();
     println!("Solved! Token length: {}", recaptcha.token().len());

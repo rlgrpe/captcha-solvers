@@ -235,9 +235,13 @@ async fn test_capsolver_recaptcha_v3_with_action() {
     skip_if_no_api_key!(api_key);
 
     let service = create_service(api_key.unwrap());
-    let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY).with_action(RECAPTCHA_V3_ACTION);
+    let task =
+        ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY).with_action(RECAPTCHA_V3_ACTION);
 
-    println!("Solving ReCaptcha V3 with action '{}'...", RECAPTCHA_V3_ACTION);
+    println!(
+        "Solving ReCaptcha V3 with action '{}'...",
+        RECAPTCHA_V3_ACTION
+    );
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
 
     match result {
@@ -416,8 +420,7 @@ fn test_shared_task_types() {
     assert_eq!(task.min_score, Some(0.9));
 
     // Turnstile
-    let task = Turnstile::new(TURNSTILE_URL, TURNSTILE_SITEKEY)
-        .with_action("login");
+    let task = Turnstile::new(TURNSTILE_URL, TURNSTILE_SITEKEY).with_action("login");
     assert_eq!(task.action.as_deref(), Some("login"));
 }
 

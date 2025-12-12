@@ -193,9 +193,7 @@ impl Display for CapsolverTask {
 // ============================================================================
 
 // Re-export shared solution types for convenience
-pub use crate::solutions::{
-    CloudflareChallengeSolution, ReCaptchaSolution, TurnstileSolution,
-};
+pub use crate::solutions::{CloudflareChallengeSolution, ReCaptchaSolution, TurnstileSolution};
 
 /// Capsolver solution types
 #[derive(Debug, Clone, Deserialize)]
@@ -219,10 +217,10 @@ impl CapsolverSolution {
     /// Try to extract ReCaptcha solution (consumes self)
     ///
     /// Returns `Ok(solution)` if this is a ReCaptcha solution, or `Err(self)` otherwise.
-    pub fn try_into_recaptcha(self) -> Result<ReCaptchaSolution, Self> {
+    pub fn try_into_recaptcha(self) -> Result<ReCaptchaSolution, Box<Self>> {
         match self {
             Self::ReCaptcha(solution) => Ok(solution),
-            other => Err(other),
+            other => Err(Box::new(other)),
         }
     }
 
@@ -247,10 +245,10 @@ impl CapsolverSolution {
     /// Try to extract Turnstile solution (consumes self)
     ///
     /// Returns `Ok(solution)` if this is a Turnstile solution, or `Err(self)` otherwise.
-    pub fn try_into_turnstile(self) -> Result<TurnstileSolution, Self> {
+    pub fn try_into_turnstile(self) -> Result<TurnstileSolution, Box<Self>> {
         match self {
             Self::Turnstile(solution) => Ok(solution),
-            other => Err(other),
+            other => Err(Box::new(other)),
         }
     }
 
@@ -270,7 +268,7 @@ impl CapsolverSolution {
     }
 
     /// Alias for `try_into_turnstile` - Cloudflare Challenge uses the same solution type
-    pub fn try_into_cloudflare_challenge(self) -> Result<TurnstileSolution, Self> {
+    pub fn try_into_cloudflare_challenge(self) -> Result<TurnstileSolution, Box<Self>> {
         self.try_into_turnstile()
     }
 
@@ -600,8 +598,7 @@ mod tests {
 
     #[test]
     fn test_from_shared_turnstile() {
-        let task = Turnstile::new("https://example.com", "key")
-            .with_action("login");
+        let task = Turnstile::new("https://example.com", "key").with_action("login");
         let capsolver_task: CapsolverTask = task.into();
         let json = serde_json::to_string(&capsolver_task).unwrap();
         assert!(json.contains("AntiTurnstileTaskProxyLess"));

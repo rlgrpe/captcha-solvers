@@ -9,7 +9,7 @@ use crate::tasks::Turnstile;
 use crate::types::TaskId;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -178,7 +178,10 @@ async fn test_get_task_result_api_error() {
         RucaptchaError::Api(error) => {
             assert_eq!(error.error_id, 1);
             assert_eq!(error.error_code, RucaptchaErrorCode::NoSuchCaptchaId);
-            assert_eq!(error.error_description, Some("Task ID is invalid".to_string()));
+            assert_eq!(
+                error.error_description,
+                Some("Task ID is invalid".to_string())
+            );
         }
         _ => panic!("Expected Api error"),
     }
@@ -261,7 +264,10 @@ fn test_rucaptcha_response_deserialization_error() {
     let error = response.into_result().expect_err("expected error response");
     assert_eq!(error.error_id, 1);
     assert_eq!(error.error_code, RucaptchaErrorCode::ZeroBalance);
-    assert_eq!(error.error_description, Some("Error Description".to_string()));
+    assert_eq!(
+        error.error_description,
+        Some("Error Description".to_string())
+    );
 }
 
 #[test]
@@ -276,7 +282,8 @@ fn test_rucaptcha_response_get_task_ready() {
         "status": "ready"
     }"#;
 
-    let response: RucaptchaResponse<GetTaskData<TestSolution>> = serde_json::from_str(json).unwrap();
+    let response: RucaptchaResponse<GetTaskData<TestSolution>> =
+        serde_json::from_str(json).unwrap();
     let data = response.into_result().expect("expected success response");
     assert_eq!(data.status, "ready");
     let solution = data.solution.expect("expected solution");
@@ -291,7 +298,8 @@ fn test_rucaptcha_response_get_task_processing() {
         "status": "processing"
     }"#;
 
-    let response: RucaptchaResponse<GetTaskData<TestSolution>> = serde_json::from_str(json).unwrap();
+    let response: RucaptchaResponse<GetTaskData<TestSolution>> =
+        serde_json::from_str(json).unwrap();
     let data = response.into_result().expect("expected success response");
     assert_eq!(data.status, "processing");
     assert!(data.solution.is_none());

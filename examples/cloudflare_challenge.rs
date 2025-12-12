@@ -45,11 +45,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Solving Cloudflare Challenge (this may take a few minutes)...");
 
-    let solution = service.solve_captcha(task, Duration::from_secs(180)).await?;
+    let solution = service
+        .solve_captcha(task, Duration::from_secs(180))
+        .await?;
 
     let cf_solution = solution.into_cloudflare_challenge();
     println!("Solved!");
-    println!("Token: {}...", &cf_solution.token()[..50.min(cf_solution.token().len())]);
+    println!(
+        "Token: {}...",
+        &cf_solution.token()[..50.min(cf_solution.token().len())]
+    );
 
     if let Some(clearance) = cf_solution.cf_clearance() {
         println!("cf_clearance cookie: {}", clearance);

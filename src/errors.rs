@@ -29,7 +29,10 @@ pub struct UnsupportedTaskError {
 impl UnsupportedTaskError {
     /// Create a new unsupported task error.
     pub fn new(task_type: &'static str, provider: &'static str) -> Self {
-        Self { task_type, provider }
+        Self {
+            task_type,
+            provider,
+        }
     }
 }
 

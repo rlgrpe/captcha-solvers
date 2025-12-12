@@ -161,7 +161,10 @@ impl Display for RucaptchaTask {
             Self::RecaptchaV2Task { .. } => write!(f, "ReCaptchaV2"),
             Self::RecaptchaV2EnterpriseTaskProxyless { .. } => write!(f, "ReCaptchaV2Enterprise"),
             Self::RecaptchaV2EnterpriseTask { .. } => write!(f, "ReCaptchaV2Enterprise"),
-            Self::RecaptchaV3TaskProxyless { is_enterprise: Some(true), .. } => {
+            Self::RecaptchaV3TaskProxyless {
+                is_enterprise: Some(true),
+                ..
+            } => {
                 write!(f, "ReCaptchaV3Enterprise")
             }
             Self::RecaptchaV3TaskProxyless { .. } => write!(f, "ReCaptchaV3"),
@@ -200,10 +203,10 @@ impl RucaptchaSolution {
     /// Try to extract ReCaptcha solution (consumes self)
     ///
     /// Returns `Ok(solution)` if this is a ReCaptcha solution, or `Err(self)` otherwise.
-    pub fn try_into_recaptcha(self) -> Result<ReCaptchaSolution, Self> {
+    pub fn try_into_recaptcha(self) -> Result<ReCaptchaSolution, Box<Self>> {
         match self {
             Self::ReCaptcha(solution) => Ok(solution),
-            other => Err(other),
+            other => Err(Box::new(other)),
         }
     }
 
@@ -228,10 +231,10 @@ impl RucaptchaSolution {
     /// Try to extract Turnstile solution (consumes self)
     ///
     /// Returns `Ok(solution)` if this is a Turnstile solution, or `Err(self)` otherwise.
-    pub fn try_into_turnstile(self) -> Result<TurnstileSolution, Self> {
+    pub fn try_into_turnstile(self) -> Result<TurnstileSolution, Box<Self>> {
         match self {
             Self::Turnstile(solution) => Ok(solution),
-            other => Err(other),
+            other => Err(Box::new(other)),
         }
     }
 
@@ -291,7 +294,9 @@ pub(crate) struct GetTaskResultRequest<'a> {
 impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
     fn from(task: crate::tasks::ReCaptchaV2) -> Self {
         let is_invisible = if task.is_invisible { Some(true) } else { None };
-        let enterprise_payload = task.enterprise_payload.map(|p| serde_json::to_value(p).unwrap_or_default());
+        let enterprise_payload = task
+            .enterprise_payload
+            .map(|p| serde_json::to_value(p).unwrap_or_default());
 
         match (task.is_enterprise, task.proxy) {
             // Enterprise with proxy
@@ -592,8 +597,7 @@ mod tests {
     #[test]
     fn test_from_shared_recaptcha_v2_with_proxy() {
         let proxy = ProxyConfig::http("192.168.1.1", 8080);
-        let task = ReCaptchaV2::new("https://example.com", "key")
-            .with_proxy(proxy);
+        let task = ReCaptchaV2::new("https://example.com", "key").with_proxy(proxy);
         let rucaptcha_task: RucaptchaTask = task.into();
         let json = serde_json::to_string(&rucaptcha_task).unwrap();
         assert!(json.contains("RecaptchaV2Task"));
@@ -602,8 +606,7 @@ mod tests {
 
     #[test]
     fn test_from_shared_turnstile() {
-        let task = Turnstile::new("https://example.com", "key")
-            .with_action("login");
+        let task = Turnstile::new("https://example.com", "key").with_action("login");
         let rucaptcha_task: RucaptchaTask = task.into();
         let json = serde_json::to_string(&rucaptcha_task).unwrap();
         assert!(json.contains("TurnstileTaskProxyless"));

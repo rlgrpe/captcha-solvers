@@ -172,10 +172,7 @@ impl CapsolverErrorCode {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::ServiceUnavailable
-                | Self::RateLimit
-                | Self::IpBanned
-                | Self::KeyTempBlocked
+            Self::ServiceUnavailable | Self::RateLimit | Self::IpBanned | Self::KeyTempBlocked
         )
     }
 

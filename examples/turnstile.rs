@@ -25,7 +25,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Solving Cloudflare Turnstile...");
 
-    let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
+    let solution = service
+        .solve_captcha(task, Duration::from_secs(120))
+        .await?;
 
     let turnstile = solution.into_turnstile();
     println!("Solved! Token: {}...", &turnstile.token()[..50]);

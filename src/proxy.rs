@@ -43,7 +43,10 @@ impl ProxyType {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CapsolverProxyFields {
-    #[serde(rename = "proxyType", serialize_with = "serialize_capsolver_proxy_type")]
+    #[serde(
+        rename = "proxyType",
+        serialize_with = "serialize_capsolver_proxy_type"
+    )]
     pub proxy_type: ProxyType,
     #[serde(rename = "proxyAddress")]
     pub proxy_address: String,
@@ -59,7 +62,10 @@ pub struct CapsolverProxyFields {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RucaptchaProxyFields {
-    #[serde(rename = "proxyType", serialize_with = "serialize_rucaptcha_proxy_type")]
+    #[serde(
+        rename = "proxyType",
+        serialize_with = "serialize_rucaptcha_proxy_type"
+    )]
     pub proxy_type: ProxyType,
     #[serde(rename = "proxyAddress")]
     pub proxy_address: String,
@@ -72,7 +78,10 @@ pub struct RucaptchaProxyFields {
 }
 
 /// Serialize ProxyType for Capsolver API
-pub fn serialize_capsolver_proxy_type<S>(proxy_type: &ProxyType, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_capsolver_proxy_type<S>(
+    proxy_type: &ProxyType,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -80,7 +89,10 @@ where
 }
 
 /// Serialize ProxyType for RuCaptcha API
-pub fn serialize_rucaptcha_proxy_type<S>(proxy_type: &ProxyType, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_rucaptcha_proxy_type<S>(
+    proxy_type: &ProxyType,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
