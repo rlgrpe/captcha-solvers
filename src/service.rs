@@ -1,5 +1,6 @@
 use crate::errors::RetryableError;
 use crate::provider::Provider;
+use crate::tasks::CaptchaTask;
 use crate::types::TaskId;
 use std::error::Error as StdError;
 use std::fmt::{Debug, Display};
@@ -56,17 +57,17 @@ impl<E: StdError + 'static> RetryableError for ServiceError<E> {
 /// This trait abstracts the service interface, allowing different
 /// service implementations to be used interchangeably.
 pub trait CaptchaSolverServiceTrait: Send + Sync {
-    /// The task type accepted by this service
-    type Task;
     /// The solution type returned by this service
     type Solution;
     /// The error type for this service
     type Error: StdError + RetryableError;
 
     /// Solve a captcha task
-    fn solve_captcha(
+    ///
+    /// Accepts any type that can be converted to [`CaptchaTask`].
+    fn solve_captcha<T: Into<CaptchaTask> + Send>(
         &self,
-        task: Self::Task,
+        task: T,
         timeout: Duration,
     ) -> impl Future<Output = Result<Self::Solution, Self::Error>> + Send;
 }
@@ -97,27 +98,29 @@ impl Default for CaptchaSolverServiceConfig {
 ///
 /// # Type Parameters
 ///
-/// - `P`: The provider implementation (e.g., `CapsolverProvider`, `TwoCaptchaProvider`)
+/// - `P`: The provider implementation (e.g., `CapsolverProvider`, `RucaptchaProvider`)
 ///
 /// # Example
 ///
 /// ```rust,ignore
-/// use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceConfig, Provider};
+/// use captcha_solvers::{
+///     CaptchaSolverService, CaptchaSolverServiceTrait,
+///     ReCaptchaV2, Turnstile,
+///     providers::capsolver::CapsolverProvider,
+/// };
 /// use std::time::Duration;
 ///
-/// let provider = MyProvider::new(api_key);
-/// let config = CaptchaSolverServiceConfig {
-///     poll_interval: Duration::from_secs(3),
-/// };
+/// // Create provider and service
+/// let provider = CapsolverProvider::new("api_key")?;
+/// let service = CaptchaSolverService::with_provider(provider);
 ///
-/// let service = CaptchaSolverService::new(provider, config);
-///
-/// let task = MyTask::Turnstile {
-///     website_url: "https://example.com".to_string(),
-///     website_key: "site_key".to_string(),
-/// };
+/// // Solve using shared task types - they convert automatically
+/// let task = ReCaptchaV2::new("https://example.com", "site_key")
+///     .invisible()
+///     .enterprise();
 ///
 /// let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
+/// println!("Token: {}", solution.into_recaptcha().token());
 /// ```
 #[derive(Debug, Clone)]
 pub struct CaptchaSolverService<P: Provider> {
@@ -157,10 +160,8 @@ where
 
 impl<P: Provider> CaptchaSolverServiceTrait for CaptchaSolverService<P>
 where
-    P::Task: Display,
     P::Error: Debug + Display + RetryableError + 'static,
 {
-    type Task = P::Task;
     type Solution = P::Solution;
     type Error = ServiceError<P::Error>;
 
@@ -172,11 +173,13 @@ where
             fields(task_type)
         )
     )]
-    async fn solve_captcha(
+    async fn solve_captcha<T: Into<CaptchaTask> + Send>(
         &self,
-        task: Self::Task,
+        task: T,
         timeout: Duration,
     ) -> Result<Self::Solution, Self::Error> {
+        let task = task.into();
+
         #[cfg(feature = "tracing")]
         Span::current().record("task_type", task.to_string());
 

@@ -1,6 +1,6 @@
 //! Error types for the RuCaptcha provider.
 
-use crate::errors::RetryableError;
+use crate::errors::{RetryableError, UnsupportedTaskError};
 use crate::types::TaskId;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -22,6 +22,9 @@ pub enum RucaptchaError {
     #[error("RuCaptcha API error: {0}")]
     Api(#[source] RucaptchaApiError),
 
+    #[error("{0}")]
+    UnsupportedTask(#[source] UnsupportedTaskError),
+
     #[error(
         "Timeout waiting for captcha solution after {:.1}s; Task id: {task_id}",
         timeout.as_secs_f64()
@@ -41,7 +44,9 @@ impl RetryableError for RucaptchaError {
             // API errors are retryable based on error code
             RucaptchaError::Api(error) => error.error_code.is_retryable(),
             // Non-retryable errors
-            RucaptchaError::BuildHttpClient(_) | RucaptchaError::ParseResponse(_) => false,
+            RucaptchaError::BuildHttpClient(_)
+            | RucaptchaError::ParseResponse(_)
+            | RucaptchaError::UnsupportedTask(_) => false,
         }
     }
 
@@ -54,7 +59,9 @@ impl RetryableError for RucaptchaError {
             // API errors have their own logic
             RucaptchaError::Api(error) => error.error_code.should_retry_operation(),
             // Configuration errors - won't work until fixed
-            RucaptchaError::BuildHttpClient(_) | RucaptchaError::ParseResponse(_) => false,
+            RucaptchaError::BuildHttpClient(_)
+            | RucaptchaError::ParseResponse(_)
+            | RucaptchaError::UnsupportedTask(_) => false,
         }
     }
 }

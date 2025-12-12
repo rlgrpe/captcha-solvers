@@ -1,4 +1,4 @@
-use crate::proxy::{serialize_capsolver_proxy_type, ProxyConfig, ProxyType};
+use crate::proxy::{serialize_capsolver_proxy_type, ProxyType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -201,230 +201,6 @@ pub struct TurnstileMetadata {
     /// Value of the `data-cdata` attribute
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cdata: Option<String>,
-}
-
-impl CapsolverTask {
-    // -------------------------------------------------------------------------
-    // ReCaptcha V2 Constructors
-    // -------------------------------------------------------------------------
-
-    /// Create a ReCaptcha V2 task (proxyless)
-    pub fn recaptcha_v2(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-    ) -> Self {
-        Self::ReCaptchaV2TaskProxyLess {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            page_action: None,
-            recaptcha_data_s_value: None,
-            is_invisible: None,
-            api_domain: None,
-        }
-    }
-
-    /// Create an invisible ReCaptcha V2 task (proxyless)
-    pub fn recaptcha_v2_invisible(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-    ) -> Self {
-        Self::ReCaptchaV2TaskProxyLess {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            page_action: None,
-            recaptcha_data_s_value: None,
-            is_invisible: Some(true),
-            api_domain: None,
-        }
-    }
-
-    /// Create a ReCaptcha V2 Enterprise task (proxyless)
-    pub fn recaptcha_v2_enterprise(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-    ) -> Self {
-        Self::ReCaptchaV2EnterpriseTaskProxyLess {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            page_action: None,
-            enterprise_payload: None,
-            is_invisible: None,
-            api_domain: None,
-        }
-    }
-
-    /// Create a ReCaptcha V2 Enterprise task with proxy
-    pub fn recaptcha_v2_enterprise_with_proxy(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-        proxy: ProxyConfig,
-    ) -> Self {
-        Self::ReCaptchaV2EnterpriseTask {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            page_action: None,
-            enterprise_payload: None,
-            is_invisible: None,
-            api_domain: None,
-            proxy_type: proxy.proxy_type,
-            proxy_address: proxy.address,
-            proxy_port: proxy.port,
-            proxy_login: proxy.login,
-            proxy_password: proxy.password,
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // ReCaptcha V3 Constructors
-    // -------------------------------------------------------------------------
-
-    /// Create a ReCaptcha V3 task (proxyless)
-    pub fn recaptcha_v3(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-    ) -> Self {
-        Self::ReCaptchaV3TaskProxyLess {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            page_action: None,
-            api_domain: None,
-        }
-    }
-
-    /// Create a ReCaptcha V3 task with action (proxyless)
-    pub fn recaptcha_v3_with_action(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-        page_action: impl Into<String>,
-    ) -> Self {
-        Self::ReCaptchaV3TaskProxyLess {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            page_action: Some(page_action.into()),
-            api_domain: None,
-        }
-    }
-
-    /// Create a ReCaptcha V3 task with proxy
-    pub fn recaptcha_v3_with_proxy(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-        proxy: ProxyConfig,
-    ) -> Self {
-        Self::ReCaptchaV3Task {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            page_action: None,
-            api_domain: None,
-            proxy_type: proxy.proxy_type,
-            proxy_address: proxy.address,
-            proxy_port: proxy.port,
-            proxy_login: proxy.login,
-            proxy_password: proxy.password,
-        }
-    }
-
-    /// Create a ReCaptcha V3 Enterprise task (proxyless)
-    pub fn recaptcha_v3_enterprise(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-    ) -> Self {
-        Self::ReCaptchaV3EnterpriseTaskProxyLess {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            page_action: None,
-            enterprise_payload: None,
-            api_domain: None,
-        }
-    }
-
-    /// Create a ReCaptcha V3 Enterprise task with proxy
-    pub fn recaptcha_v3_enterprise_with_proxy(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-        proxy: ProxyConfig,
-    ) -> Self {
-        Self::ReCaptchaV3EnterpriseTask {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            page_action: None,
-            enterprise_payload: None,
-            api_domain: None,
-            proxy_type: proxy.proxy_type,
-            proxy_address: proxy.address,
-            proxy_port: proxy.port,
-            proxy_login: proxy.login,
-            proxy_password: proxy.password,
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Turnstile Constructors
-    // -------------------------------------------------------------------------
-
-    /// Create a Turnstile task
-    pub fn turnstile(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-    ) -> Self {
-        Self::AntiTurnstileTaskProxyLess {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            metadata: None,
-        }
-    }
-
-    /// Create a Turnstile task with metadata
-    pub fn turnstile_with_metadata(
-        website_url: impl Into<String>,
-        website_key: impl Into<String>,
-        metadata: TurnstileMetadata,
-    ) -> Self {
-        Self::AntiTurnstileTaskProxyLess {
-            website_url: website_url.into(),
-            website_key: website_key.into(),
-            metadata: Some(metadata),
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Cloudflare Challenge Constructors
-    // -------------------------------------------------------------------------
-
-    /// Create a Cloudflare Challenge task (requires proxy)
-    pub fn cloudflare_challenge(
-        website_url: impl Into<String>,
-        proxy: ProxyConfig,
-    ) -> Self {
-        Self::AntiCloudflareTask {
-            website_url: website_url.into(),
-            user_agent: None,
-            html: None,
-            proxy_type: proxy.proxy_type,
-            proxy_address: proxy.address,
-            proxy_port: proxy.port,
-            proxy_login: proxy.login,
-            proxy_password: proxy.password,
-        }
-    }
-
-    /// Create a Cloudflare Challenge task with user agent
-    pub fn cloudflare_challenge_with_user_agent(
-        website_url: impl Into<String>,
-        proxy: ProxyConfig,
-        user_agent: impl Into<String>,
-    ) -> Self {
-        Self::AntiCloudflareTask {
-            website_url: website_url.into(),
-            user_agent: Some(user_agent.into()),
-            html: None,
-            proxy_type: proxy.proxy_type,
-            proxy_address: proxy.address,
-            proxy_port: proxy.port,
-            proxy_login: proxy.login,
-            proxy_password: proxy.password,
-        }
-    }
 }
 
 impl Display for CapsolverTask {
@@ -641,16 +417,156 @@ pub(crate) struct GetTaskResultRequest<'a> {
 }
 
 // ============================================================================
+// From implementations for shared task types
+// ============================================================================
+
+impl From<crate::tasks::ReCaptchaV2> for CapsolverTask {
+    fn from(task: crate::tasks::ReCaptchaV2) -> Self {
+        let is_invisible = if task.is_invisible { Some(true) } else { None };
+
+        match (task.is_enterprise, task.proxy) {
+            // Enterprise with proxy
+            (true, Some(proxy)) => Self::ReCaptchaV2EnterpriseTask {
+                website_url: task.website_url,
+                website_key: task.website_key,
+                page_action: task.page_action,
+                enterprise_payload: task.enterprise_payload,
+                is_invisible,
+                api_domain: task.api_domain,
+                proxy_type: proxy.proxy_type,
+                proxy_address: proxy.address,
+                proxy_port: proxy.port,
+                proxy_login: proxy.login,
+                proxy_password: proxy.password,
+            },
+            // Enterprise without proxy
+            (true, None) => Self::ReCaptchaV2EnterpriseTaskProxyLess {
+                website_url: task.website_url,
+                website_key: task.website_key,
+                page_action: task.page_action,
+                enterprise_payload: task.enterprise_payload,
+                is_invisible,
+                api_domain: task.api_domain,
+            },
+            // Standard (proxyless - Capsolver doesn't have V2 with proxy non-enterprise)
+            (false, _) => Self::ReCaptchaV2TaskProxyLess {
+                website_url: task.website_url,
+                website_key: task.website_key,
+                page_action: task.page_action,
+                recaptcha_data_s_value: task.recaptcha_data_s_value,
+                is_invisible,
+                api_domain: task.api_domain,
+            },
+        }
+    }
+}
+
+impl From<crate::tasks::ReCaptchaV3> for CapsolverTask {
+    fn from(task: crate::tasks::ReCaptchaV3) -> Self {
+        match (task.is_enterprise, task.proxy) {
+            // Enterprise with proxy
+            (true, Some(proxy)) => Self::ReCaptchaV3EnterpriseTask {
+                website_url: task.website_url,
+                website_key: task.website_key,
+                page_action: task.page_action,
+                enterprise_payload: task.enterprise_payload,
+                api_domain: task.api_domain,
+                proxy_type: proxy.proxy_type,
+                proxy_address: proxy.address,
+                proxy_port: proxy.port,
+                proxy_login: proxy.login,
+                proxy_password: proxy.password,
+            },
+            // Enterprise without proxy
+            (true, None) => Self::ReCaptchaV3EnterpriseTaskProxyLess {
+                website_url: task.website_url,
+                website_key: task.website_key,
+                page_action: task.page_action,
+                enterprise_payload: task.enterprise_payload,
+                api_domain: task.api_domain,
+            },
+            // Standard with proxy
+            (false, Some(proxy)) => Self::ReCaptchaV3Task {
+                website_url: task.website_url,
+                website_key: task.website_key,
+                page_action: task.page_action,
+                api_domain: task.api_domain,
+                proxy_type: proxy.proxy_type,
+                proxy_address: proxy.address,
+                proxy_port: proxy.port,
+                proxy_login: proxy.login,
+                proxy_password: proxy.password,
+            },
+            // Standard without proxy
+            (false, None) => Self::ReCaptchaV3TaskProxyLess {
+                website_url: task.website_url,
+                website_key: task.website_key,
+                page_action: task.page_action,
+                api_domain: task.api_domain,
+            },
+        }
+    }
+}
+
+impl From<crate::tasks::Turnstile> for CapsolverTask {
+    fn from(task: crate::tasks::Turnstile) -> Self {
+        let metadata = if task.action.is_some() || task.cdata.is_some() {
+            Some(TurnstileMetadata {
+                action: task.action,
+                cdata: task.cdata,
+            })
+        } else {
+            None
+        };
+
+        // Note: Capsolver Turnstile is proxyless only
+        Self::AntiTurnstileTaskProxyLess {
+            website_url: task.website_url,
+            website_key: task.website_key,
+            metadata,
+        }
+    }
+}
+
+impl From<crate::tasks::CloudflareChallenge> for CapsolverTask {
+    fn from(task: crate::tasks::CloudflareChallenge) -> Self {
+        Self::AntiCloudflareTask {
+            website_url: task.website_url,
+            user_agent: task.user_agent,
+            html: task.html,
+            proxy_type: task.proxy.proxy_type,
+            proxy_address: task.proxy.address,
+            proxy_port: task.proxy.port,
+            proxy_login: task.proxy.login,
+            proxy_password: task.proxy.password,
+        }
+    }
+}
+
+impl From<crate::tasks::CaptchaTask> for CapsolverTask {
+    fn from(task: crate::tasks::CaptchaTask) -> Self {
+        match task {
+            crate::tasks::CaptchaTask::ReCaptchaV2(t) => t.into(),
+            crate::tasks::CaptchaTask::ReCaptchaV3(t) => t.into(),
+            crate::tasks::CaptchaTask::Turnstile(t) => t.into(),
+            crate::tasks::CaptchaTask::CloudflareChallenge(t) => t.into(),
+        }
+    }
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::proxy::ProxyConfig;
+    use crate::tasks::{CloudflareChallenge, ReCaptchaV2, ReCaptchaV3, Turnstile};
 
     #[test]
     fn test_recaptcha_v2_serialization() {
-        let task = CapsolverTask::recaptcha_v2("https://example.com", "site-key");
+        let task: CapsolverTask = ReCaptchaV2::new("https://example.com", "site-key").into();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("ReCaptchaV2TaskProxyLess"));
         assert!(json.contains("websiteURL"));
@@ -659,7 +575,9 @@ mod tests {
 
     #[test]
     fn test_recaptcha_v2_invisible_serialization() {
-        let task = CapsolverTask::recaptcha_v2_invisible("https://example.com", "site-key");
+        let task: CapsolverTask = ReCaptchaV2::new("https://example.com", "site-key")
+            .invisible()
+            .into();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("isInvisible"));
         assert!(json.contains("true"));
@@ -667,8 +585,9 @@ mod tests {
 
     #[test]
     fn test_recaptcha_v3_with_action_serialization() {
-        let task =
-            CapsolverTask::recaptcha_v3_with_action("https://example.com", "site-key", "submit");
+        let task: CapsolverTask = ReCaptchaV3::new("https://example.com", "site-key")
+            .with_action("submit")
+            .into();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("ReCaptchaV3TaskProxyLess"));
         assert!(json.contains("pageAction"));
@@ -677,20 +596,16 @@ mod tests {
 
     #[test]
     fn test_turnstile_serialization() {
-        let task = CapsolverTask::turnstile("https://example.com", "site-key");
+        let task: CapsolverTask = Turnstile::new("https://example.com", "site-key").into();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("AntiTurnstileTaskProxyLess"));
-        assert!(!json.contains("metadata"));
     }
 
     #[test]
     fn test_turnstile_with_metadata_serialization() {
-        let metadata = TurnstileMetadata {
-            action: Some("login".to_string()),
-            cdata: None,
-        };
-        let task =
-            CapsolverTask::turnstile_with_metadata("https://example.com", "site-key", metadata);
+        let task: CapsolverTask = Turnstile::new("https://example.com", "site-key")
+            .with_action("login")
+            .into();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("metadata"));
         assert!(json.contains("action"));
@@ -700,7 +615,7 @@ mod tests {
     #[test]
     fn test_cloudflare_challenge_serialization() {
         let proxy = ProxyConfig::http("proxy.example.com", 8080);
-        let task = CapsolverTask::cloudflare_challenge("https://example.com", proxy);
+        let task: CapsolverTask = CloudflareChallenge::new("https://example.com", proxy).into();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("AntiCloudflareTask"));
         assert!(json.contains("proxyType"));
@@ -751,34 +666,61 @@ mod tests {
 
     #[test]
     fn test_task_display() {
-        assert_eq!(
-            CapsolverTask::recaptcha_v2("url", "key").to_string(),
-            "ReCaptchaV2"
-        );
-        assert_eq!(
-            CapsolverTask::recaptcha_v3("url", "key").to_string(),
-            "ReCaptchaV3"
-        );
-        assert_eq!(
-            CapsolverTask::turnstile("url", "key").to_string(),
-            "Turnstile"
-        );
+        let task: CapsolverTask = ReCaptchaV2::new("url", "key").into();
+        assert_eq!(task.to_string(), "ReCaptchaV2");
+
+        let task: CapsolverTask = ReCaptchaV3::new("url", "key").into();
+        assert_eq!(task.to_string(), "ReCaptchaV3");
+
+        let task: CapsolverTask = Turnstile::new("url", "key").into();
+        assert_eq!(task.to_string(), "Turnstile");
+
         let proxy = ProxyConfig::http("proxy", 8080);
-        assert_eq!(
-            CapsolverTask::cloudflare_challenge("url", proxy).to_string(),
-            "CloudflareChallenge"
-        );
+        let task: CapsolverTask = CloudflareChallenge::new("url", proxy).into();
+        assert_eq!(task.to_string(), "CloudflareChallenge");
     }
 
     #[test]
     fn test_proxy_serialization() {
         let proxy = ProxyConfig::socks5("192.168.1.1", 1080).with_auth("user", "pass");
-        let task = CapsolverTask::recaptcha_v3_with_proxy("https://example.com", "key", proxy);
+        let task: CapsolverTask = ReCaptchaV3::new("https://example.com", "key")
+            .with_proxy(proxy)
+            .into();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("\"proxyType\":\"socks5\""));
         assert!(json.contains("\"proxyAddress\":\"192.168.1.1\""));
         assert!(json.contains("\"proxyPort\":1080"));
         assert!(json.contains("\"proxyLogin\":\"user\""));
         assert!(json.contains("\"proxyPassword\":\"pass\""));
+    }
+
+    #[test]
+    fn test_from_shared_recaptcha_v2() {
+        let task = ReCaptchaV2::new("https://example.com", "key");
+        let capsolver_task: CapsolverTask = task.into();
+        let json = serde_json::to_string(&capsolver_task).unwrap();
+        assert!(json.contains("ReCaptchaV2TaskProxyLess"));
+    }
+
+    #[test]
+    fn test_from_shared_recaptcha_v2_enterprise_with_proxy() {
+        let proxy = ProxyConfig::http("192.168.1.1", 8080);
+        let task = ReCaptchaV2::new("https://example.com", "key")
+            .enterprise()
+            .with_proxy(proxy);
+        let capsolver_task: CapsolverTask = task.into();
+        let json = serde_json::to_string(&capsolver_task).unwrap();
+        assert!(json.contains("ReCaptchaV2EnterpriseTask"));
+        assert!(json.contains("proxyAddress"));
+    }
+
+    #[test]
+    fn test_from_shared_turnstile() {
+        let task = Turnstile::new("https://example.com", "key")
+            .with_action("login");
+        let capsolver_task: CapsolverTask = task.into();
+        let json = serde_json::to_string(&capsolver_task).unwrap();
+        assert!(json.contains("AntiTurnstileTaskProxyLess"));
+        assert!(json.contains("\"action\":\"login\""));
     }
 }

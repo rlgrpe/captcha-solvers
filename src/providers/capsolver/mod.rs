@@ -4,58 +4,54 @@
 //!
 //! ## Supported Captcha Types
 //!
-//! | Type | Task Constructor | Proxy Required |
-//! |------|-----------------|----------------|
-//! | ReCaptcha V2 | `CapsolverTask::recaptcha_v2()` | No |
-//! | ReCaptcha V2 Invisible | `CapsolverTask::recaptcha_v2_invisible()` | No |
-//! | ReCaptcha V2 Enterprise | `CapsolverTask::recaptcha_v2_enterprise()` | No |
-//! | ReCaptcha V2 Enterprise | `CapsolverTask::recaptcha_v2_enterprise_with_proxy()` | Yes |
-//! | ReCaptcha V3 | `CapsolverTask::recaptcha_v3()` | No |
-//! | ReCaptcha V3 | `CapsolverTask::recaptcha_v3_with_action()` | No |
-//! | ReCaptcha V3 | `CapsolverTask::recaptcha_v3_with_proxy()` | Yes |
-//! | ReCaptcha V3 Enterprise | `CapsolverTask::recaptcha_v3_enterprise()` | No |
-//! | ReCaptcha V3 Enterprise | `CapsolverTask::recaptcha_v3_enterprise_with_proxy()` | Yes |
-//! | Cloudflare Turnstile | `CapsolverTask::turnstile()` | No |
-//! | Cloudflare Turnstile | `CapsolverTask::turnstile_with_metadata()` | No |
-//! | Cloudflare Challenge | `CapsolverTask::cloudflare_challenge()` | Yes |
+//! | Type | Task Type | Proxy Required |
+//! |------|-----------|----------------|
+//! | ReCaptcha V2 | [`ReCaptchaV2`](crate::ReCaptchaV2) | No |
+//! | ReCaptcha V2 Invisible | [`ReCaptchaV2`](crate::ReCaptchaV2) with `.invisible()` | No |
+//! | ReCaptcha V2 Enterprise | [`ReCaptchaV2`](crate::ReCaptchaV2) with `.enterprise()` | No |
+//! | ReCaptcha V3 | [`ReCaptchaV3`](crate::ReCaptchaV3) | No |
+//! | ReCaptcha V3 Enterprise | [`ReCaptchaV3`](crate::ReCaptchaV3) with `.enterprise()` | No |
+//! | Cloudflare Turnstile | [`Turnstile`](crate::Turnstile) | No |
+//! | Cloudflare Challenge | [`CloudflareChallenge`](crate::CloudflareChallenge) | Yes |
 //!
 //! ## Quick Start
 //!
 //! ```rust,ignore
-//! use captcha_solvers::providers::capsolver::{CapsolverClient, CapsolverProvider, CapsolverTask};
-//! use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait};
+//! use captcha_solvers::providers::capsolver::CapsolverProvider;
+//! use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
 //! use std::time::Duration;
 //!
-//! // Create client with default API URL
-//! let client = CapsolverClient::new("your_api_key")?;
-//! let provider = CapsolverProvider::new(client);
+//! // Create provider with API key
+//! let provider = CapsolverProvider::new("your_api_key")?;
 //! let service = CaptchaSolverService::with_provider(provider);
 //!
-//! // Solve ReCaptcha V2
-//! let task = CapsolverTask::recaptcha_v2("https://example.com", "site_key");
+//! // Solve ReCaptcha V2 using shared task types
+//! let task = ReCaptchaV2::new("https://example.com", "site_key")
+//!     .invisible()
+//!     .enterprise();
 //! let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
 //! let token = solution.into_recaptcha().token();
 //! ```
 //!
-//! ## Client Configuration
+//! ## Provider Configuration
 //!
-//! The client can be configured using the builder pattern:
+//! The provider can be configured using the builder pattern:
 //!
 //! ```rust,ignore
-//! use captcha_solvers::providers::capsolver::CapsolverClient;
+//! use captcha_solvers::providers::capsolver::CapsolverProvider;
 //! use url::Url;
 //!
 //! // Simple: default API URL
-//! let client = CapsolverClient::new("api_key")?;
+//! let provider = CapsolverProvider::new("api_key")?;
 //!
 //! // Custom URL
-//! let client = CapsolverClient::with_url(
+//! let provider = CapsolverProvider::with_url(
 //!     Url::parse("https://api.capsolver.com")?,
 //!     "api_key"
 //! )?;
 //!
 //! // Full builder
-//! let client = CapsolverClient::builder("api_key")
+//! let provider = CapsolverProvider::builder("api_key")
 //!     .url(custom_url)
 //!     .http_client(custom_middleware_client)
 //!     .build()?;
@@ -84,7 +80,6 @@
 //! }
 //! ```
 
-mod client;
 mod errors;
 mod provider;
 mod response;
@@ -93,19 +88,13 @@ mod types;
 #[cfg(test)]
 mod tests;
 
-// Client
-pub use client::{CapsolverClient, CapsolverClientBuilder, DEFAULT_API_URL};
-
 // Errors
 pub use errors::{CapsolverApiError, CapsolverError, CapsolverErrorCode};
 
 // Provider
-pub use provider::CapsolverProvider;
+pub use provider::{CapsolverProvider, CapsolverProviderBuilder, DEFAULT_API_URL};
 
-// Tasks
-pub use types::{CapsolverTask, TurnstileMetadata};
-
-// Solutions
+// Solutions (public API)
 pub use types::{
     CapsolverSolution, CloudflareChallengeSolution, ReCaptchaSolution, TurnstileSolution,
 };

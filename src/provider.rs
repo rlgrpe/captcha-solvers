@@ -1,9 +1,10 @@
 use crate::errors::RetryableError;
 use crate::retry::RetryConfig;
+use crate::tasks::CaptchaTask;
 use crate::types::TaskId;
 use backon::Retryable;
 use std::error::Error as StdError;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::future::Future;
 
 #[cfg(feature = "tracing")]
@@ -11,52 +12,40 @@ use tracing::debug;
 
 /// Core trait that all captcha solver providers must implement
 ///
-/// This trait uses associated types to allow each provider to define
-/// its own task and solution types, enabling type-safe interactions
-/// with different captcha solving services.
+/// This trait uses [`CaptchaTask`] as a unified input type for all captcha tasks,
+/// allowing providers to internally convert to their specific format.
 ///
 /// # Type Parameters
 ///
-/// - `Task`: The captcha task type specific to this provider (e.g., `CapsolverTask`)
 /// - `Solution`: The solution type returned by this provider (e.g., `CapsolverSolution`)
 /// - `Error`: The error type for this provider
 ///
 /// # Example
 ///
 /// ```rust,ignore
-/// use captcha_solvers::{Provider, TaskId};
+/// use captcha_solvers::{Provider, CaptchaTask, TaskId};
 ///
 /// #[derive(Clone)]
 /// struct MyProvider { /* ... */ }
-///
-/// #[derive(Clone)]
-/// enum MyTask {
-///     Turnstile { url: String, key: String },
-///     ReCaptcha { url: String, key: String },
-/// }
 ///
 /// struct MySolution {
 ///     token: String,
 /// }
 ///
 /// impl Provider for MyProvider {
-///     type Task = MyTask;
 ///     type Solution = MySolution;
 ///     type Error = MyError;
 ///
-///     async fn create_task(&self, task: Self::Task) -> Result<TaskId, Self::Error> {
-///         // Implementation
+///     async fn create_task(&self, task: CaptchaTask) -> Result<TaskId, Self::Error> {
+///         // Convert CaptchaTask to internal format and submit
 ///     }
 ///
 ///     async fn get_task_result(&self, task_id: &TaskId) -> Result<Option<Self::Solution>, Self::Error> {
-///         // Implementation
+///         // Poll for solution
 ///     }
 /// }
 /// ```
 pub trait Provider: Send + Sync + Clone {
-    /// The captcha task type accepted by this provider
-    type Task: Clone + Send + Sync;
-
     /// The solution type returned by this provider
     type Solution: Send + Sync;
 
@@ -66,11 +55,11 @@ pub trait Provider: Send + Sync + Clone {
     /// Create a new captcha solving task
     ///
     /// # Arguments
-    /// * `task` - Task parameters specific to this provider
+    /// * `task` - Unified captcha task (will be converted internally)
     ///
     /// # Returns
     /// * `task_id` - Unique identifier for this captcha task
-    fn create_task(&self, task: Self::Task) -> impl Future<Output = Result<TaskId, Self::Error>> + Send;
+    fn create_task(&self, task: CaptchaTask) -> impl Future<Output = Result<TaskId, Self::Error>> + Send;
 
     /// Get the solution for a captcha task if available
     ///
@@ -98,7 +87,7 @@ pub trait Provider: Send + Sync + Clone {
 /// use captcha_solvers::retry::RetryConfig;
 /// use std::time::Duration;
 ///
-/// let base_provider = CapsolverProvider::new(client);
+/// let base_provider = CapsolverProvider::new("api_key")?;
 ///
 /// // With default retry config
 /// let provider = RetryableProvider::new(base_provider.clone());
@@ -148,10 +137,8 @@ impl<P: Provider> RetryableProvider<P> {
 
 impl<P: Provider> Provider for RetryableProvider<P>
 where
-    P::Task: Display,
-    P::Error: Debug + Display,
+    P::Error: Debug,
 {
-    type Task = P::Task;
     type Solution = P::Solution;
     type Error = P::Error;
 
@@ -159,7 +146,7 @@ where
         feature = "tracing",
         tracing::instrument(name = "RetryableProvider::create_task", skip_all, fields(task_type))
     )]
-    async fn create_task(&self, task: Self::Task) -> Result<TaskId, Self::Error> {
+    async fn create_task(&self, task: CaptchaTask) -> Result<TaskId, Self::Error> {
         #[cfg(feature = "tracing")]
         tracing::Span::current().record("task_type", task.to_string());
 
@@ -172,7 +159,7 @@ where
                 let _ = (err, duration);
                 #[cfg(feature = "tracing")]
                 debug!(
-                    error = %err,
+                    error = ?err,
                     task_type = %task,
                     retry_after_secs = %duration.as_secs_f64(),
                     "Retrying create_task after transient error"
@@ -202,7 +189,7 @@ where
                 let _ = (err, duration);
                 #[cfg(feature = "tracing")]
                 debug!(
-                    error = %err,
+                    error = ?err,
                     task_id = %task_id,
                     retry_after_secs = %duration.as_secs_f64(),
                     "Retrying get_task_result after transient error"

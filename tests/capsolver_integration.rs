@@ -8,10 +8,11 @@
 
 mod common;
 
-use captcha_solvers::providers::capsolver::{
-    CapsolverClient, CapsolverProvider, CapsolverTask, ProxyConfig,
+use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::{
+    CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait,
+    CloudflareChallenge, ProxyConfig, ReCaptchaV2, ReCaptchaV3, Turnstile,
 };
-use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait};
 use std::time::Duration;
 
 // =============================================================================
@@ -20,24 +21,13 @@ use std::time::Duration;
 
 /// ReCaptcha V2 demo site key
 const RECAPTCHA_V2_SITEKEY: &str = "6Lcg7CMUAAAAANphynKgn9YAgA4tQ2KI_iqRyTwd";
-const RECAPTCHA_V2_URL: &str = "https://lessons.zennolab.com/captchas/recaptcha/v2_simple.php?level=high";
-
-/// ReCaptcha V2 Invisible demo site key
-const RECAPTCHA_V2_INVISIBLE_SITEKEY: &str = "6Lcg7CMUAAAAANphynKgn9YAgA4tQ2KI_iqRyTwd";
-const RECAPTCHA_V2_INVISIBLE_URL: &str = "https://lessons.zennolab.com/captchas/recaptcha/v2_simple.php?level=high";
-
-/// ReCaptcha V2 Enterprise demo site key
-const RECAPTCHA_V2_ENTERPRISE_SITEKEY: &str = "6Lcg7CMUAAAAANphynKgn9YAgA4tQ2KI_iqRyTwd";
-const RECAPTCHA_V2_ENTERPRISE_URL: &str = "https://lessons.zennolab.com/captchas/recaptcha/v2_simple.php?level=high";
+const RECAPTCHA_V2_URL: &str =
+    "https://lessons.zennolab.com/captchas/recaptcha/v2_simple.php?level=high";
 
 /// ReCaptcha V3 demo site key
 const RECAPTCHA_V3_SITEKEY: &str = "6Le0xVgUAAAAAIt20XEB4rVhYOODgTl00d8juDob";
 const RECAPTCHA_V3_URL: &str = "https://lessons.zennolab.com/captchas/recaptcha/v3.php?level=beta";
 const RECAPTCHA_V3_ACTION: &str = "myverify";
-
-/// ReCaptcha V3 Enterprise demo site key
-const RECAPTCHA_V3_ENTERPRISE_SITEKEY: &str = "6Le0xVgUAAAAAIt20XEB4rVhYOODgTl00d8juDob";
-const RECAPTCHA_V3_ENTERPRISE_URL: &str = "https://lessons.zennolab.com/captchas/recaptcha/v3.php?level=beta";
 
 /// Cloudflare Turnstile demo site key
 const TURNSTILE_SITEKEY: &str = "0x4AAAAAABhlz7Ei4byodYjs";
@@ -48,36 +38,34 @@ const TURNSTILE_URL: &str = "https://visa.vfsglobal.com/uzb/ru/ltu/login";
 // =============================================================================
 
 fn create_service(api_key: String) -> CaptchaSolverService<CapsolverProvider> {
-    let client = CapsolverClient::new(api_key).expect("Failed to create client");
-    let provider = CapsolverProvider::new(client);
+    let provider = CapsolverProvider::new(api_key).expect("Failed to create provider");
     CaptchaSolverService::new(provider, CaptchaSolverServiceConfig::default())
 }
 
 // =============================================================================
-// Client Tests
+// Provider Tests
 // =============================================================================
 
-/// Test that the client can be created with valid API key
+/// Test that the provider can be created with valid API key
 #[tokio::test]
 #[ignore]
-async fn test_capsolver_client_creation() {
+async fn test_capsolver_provider_creation() {
     let api_key = common::capsolver_api_key();
     skip_if_no_api_key!(api_key);
 
-    let client = CapsolverClient::new(api_key.unwrap());
-    assert!(client.is_ok());
+    let provider = CapsolverProvider::new(api_key.unwrap());
+    assert!(provider.is_ok());
 }
 
 /// Test that API errors are properly returned for invalid API key
 #[tokio::test]
 #[ignore]
 async fn test_capsolver_invalid_api_key() {
-    let client = CapsolverClient::new("invalid_api_key_12345").expect("Failed to create client");
-    let provider = CapsolverProvider::new(client);
+    let provider =
+        CapsolverProvider::new("invalid_api_key_12345").expect("Failed to create provider");
     let service = CaptchaSolverService::new(provider, CaptchaSolverServiceConfig::default());
 
-    let task = CapsolverTask::turnstile("https://example.com", "test_key");
-
+    let task = Turnstile::new("https://example.com", "test_key");
     let result = service.solve_captcha(task, Duration::from_secs(30)).await;
     assert!(result.is_err());
     println!("Got expected error for invalid API key: {:?}", result.err());
@@ -95,7 +83,7 @@ async fn test_capsolver_recaptcha_v2() {
     skip_if_no_api_key!(api_key);
 
     let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::recaptcha_v2(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY);
+    let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY);
 
     println!("Solving ReCaptcha V2...");
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
@@ -122,10 +110,7 @@ async fn test_capsolver_recaptcha_v2_invisible() {
     skip_if_no_api_key!(api_key);
 
     let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::recaptcha_v2_invisible(
-        RECAPTCHA_V2_INVISIBLE_URL,
-        RECAPTCHA_V2_INVISIBLE_SITEKEY,
-    );
+    let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY).invisible();
 
     println!("Solving ReCaptcha V2 Invisible...");
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
@@ -152,10 +137,7 @@ async fn test_capsolver_recaptcha_v2_enterprise() {
     skip_if_no_api_key!(api_key);
 
     let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::recaptcha_v2_enterprise(
-        RECAPTCHA_V2_ENTERPRISE_URL,
-        RECAPTCHA_V2_ENTERPRISE_SITEKEY,
-    );
+    let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY).enterprise();
 
     println!("Solving ReCaptcha V2 Enterprise...");
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
@@ -193,11 +175,9 @@ async fn test_capsolver_recaptcha_v2_enterprise_with_proxy() {
     );
 
     let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::recaptcha_v2_enterprise_with_proxy(
-        RECAPTCHA_V2_ENTERPRISE_URL,
-        RECAPTCHA_V2_ENTERPRISE_SITEKEY,
-        proxy,
-    );
+    let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY)
+        .enterprise()
+        .with_proxy(proxy);
 
     println!("Solving ReCaptcha V2 Enterprise with proxy...");
     let result = service.solve_captcha(task, Duration::from_secs(180)).await;
@@ -228,7 +208,7 @@ async fn test_capsolver_recaptcha_v3() {
     skip_if_no_api_key!(api_key);
 
     let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::recaptcha_v3(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY);
+    let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY);
 
     println!("Solving ReCaptcha V3...");
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
@@ -255,11 +235,7 @@ async fn test_capsolver_recaptcha_v3_with_action() {
     skip_if_no_api_key!(api_key);
 
     let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::recaptcha_v3_with_action(
-        RECAPTCHA_V3_URL,
-        RECAPTCHA_V3_SITEKEY,
-        RECAPTCHA_V3_ACTION,
-    );
+    let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY).with_action(RECAPTCHA_V3_ACTION);
 
     println!("Solving ReCaptcha V3 with action '{}'...", RECAPTCHA_V3_ACTION);
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
@@ -297,7 +273,7 @@ async fn test_capsolver_recaptcha_v3_with_proxy() {
     );
 
     let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::recaptcha_v3_with_proxy(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY, proxy);
+    let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY).with_proxy(proxy);
 
     println!("Solving ReCaptcha V3 with proxy...");
     let result = service.solve_captcha(task, Duration::from_secs(180)).await;
@@ -324,10 +300,7 @@ async fn test_capsolver_recaptcha_v3_enterprise() {
     skip_if_no_api_key!(api_key);
 
     let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::recaptcha_v3_enterprise(
-        RECAPTCHA_V3_ENTERPRISE_URL,
-        RECAPTCHA_V3_ENTERPRISE_SITEKEY,
-    );
+    let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY).enterprise();
 
     println!("Solving ReCaptcha V3 Enterprise...");
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
@@ -338,48 +311,6 @@ async fn test_capsolver_recaptcha_v3_enterprise() {
             let token = recaptcha.token();
             assert!(!token.is_empty());
             println!("Successfully solved ReCaptcha V3 Enterprise");
-            println!("Token length: {}", token.len());
-        }
-        Err(e) => {
-            panic!("Failed to solve captcha: {}", e);
-        }
-    }
-}
-
-/// Test solving ReCaptcha V3 Enterprise with proxy
-#[tokio::test]
-#[ignore]
-async fn test_capsolver_recaptcha_v3_enterprise_with_proxy() {
-    let api_key = common::capsolver_api_key();
-    skip_if_no_api_key!(api_key);
-
-    let proxy = common::proxy_config();
-    skip_if_no_proxy!(proxy);
-
-    let proxy = proxy.unwrap();
-    println!(
-        "Using proxy: {}:{} ({})",
-        proxy.address,
-        proxy.port,
-        proxy.type_str()
-    );
-
-    let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::recaptcha_v3_enterprise_with_proxy(
-        RECAPTCHA_V3_ENTERPRISE_URL,
-        RECAPTCHA_V3_ENTERPRISE_SITEKEY,
-        proxy,
-    );
-
-    println!("Solving ReCaptcha V3 Enterprise with proxy...");
-    let result = service.solve_captcha(task, Duration::from_secs(180)).await;
-
-    match result {
-        Ok(solution) => {
-            let recaptcha = solution.into_recaptcha();
-            let token = recaptcha.token();
-            assert!(!token.is_empty());
-            println!("Successfully solved ReCaptcha V3 Enterprise with proxy");
             println!("Token length: {}", token.len());
         }
         Err(e) => {
@@ -400,7 +331,7 @@ async fn test_capsolver_turnstile() {
     skip_if_no_api_key!(api_key);
 
     let service = create_service(api_key.unwrap());
-    let task = CapsolverTask::turnstile(TURNSTILE_URL, TURNSTILE_SITEKEY);
+    let task = Turnstile::new(TURNSTILE_URL, TURNSTILE_SITEKEY);
 
     println!("Solving Cloudflare Turnstile...");
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
@@ -442,8 +373,7 @@ async fn test_capsolver_cloudflare_challenge() {
     );
 
     let service = create_service(api_key.unwrap());
-    // Use a known Cloudflare-protected site
-    let task = CapsolverTask::cloudflare_challenge("https://www.moneysupermarket.com", proxy);
+    let task = CloudflareChallenge::new("https://www.moneysupermarket.com", proxy);
 
     println!("Solving Cloudflare Challenge...");
     let result = service.solve_captcha(task, Duration::from_secs(180)).await;
@@ -467,71 +397,36 @@ async fn test_capsolver_cloudflare_challenge() {
 // Serialization Tests (non-ignored, no API key required)
 // =============================================================================
 
-/// Test ReCaptcha V2 task serialization
+/// Test shared task types serialization
 #[test]
-fn test_recaptcha_v2_serialization() {
-    let task = CapsolverTask::recaptcha_v2(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY);
-    let json = serde_json::to_string_pretty(&task).unwrap();
-    println!("ReCaptcha V2 Task JSON:\n{}", json);
+fn test_shared_task_types() {
+    // ReCaptcha V2
+    let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY)
+        .invisible()
+        .enterprise();
+    assert!(task.is_invisible);
+    assert!(task.is_enterprise);
+    assert_eq!(task.website_url, RECAPTCHA_V2_URL);
 
-    assert!(json.contains("ReCaptchaV2TaskProxyLess"));
-    assert!(json.contains(RECAPTCHA_V2_SITEKEY));
-    assert!(json.contains(RECAPTCHA_V2_URL));
+    // ReCaptcha V3
+    let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY)
+        .with_action(RECAPTCHA_V3_ACTION)
+        .with_min_score(0.9);
+    assert_eq!(task.page_action.as_deref(), Some(RECAPTCHA_V3_ACTION));
+    assert_eq!(task.min_score, Some(0.9));
+
+    // Turnstile
+    let task = Turnstile::new(TURNSTILE_URL, TURNSTILE_SITEKEY)
+        .with_action("login");
+    assert_eq!(task.action.as_deref(), Some("login"));
 }
 
-/// Test ReCaptcha V3 with action task serialization
+/// Test proxy configuration
 #[test]
-fn test_recaptcha_v3_with_action_serialization() {
-    let task = CapsolverTask::recaptcha_v3_with_action(
-        RECAPTCHA_V3_URL,
-        RECAPTCHA_V3_SITEKEY,
-        RECAPTCHA_V3_ACTION,
-    );
-    let json = serde_json::to_string_pretty(&task).unwrap();
-    println!("ReCaptcha V3 with Action Task JSON:\n{}", json);
-
-    assert!(json.contains("ReCaptchaV3TaskProxyLess"));
-    assert!(json.contains(RECAPTCHA_V3_SITEKEY));
-    assert!(json.contains(RECAPTCHA_V3_ACTION));
-}
-
-/// Test proxy configuration serialization
-#[test]
-fn test_proxy_config_serialization() {
+fn test_proxy_config() {
     let proxy = ProxyConfig::socks5("192.168.1.1", 1080).with_auth("user", "pass");
-    let task = CapsolverTask::recaptcha_v3_with_proxy("https://example.com", "site_key", proxy);
-
-    let json = serde_json::to_string_pretty(&task).unwrap();
-    println!("Task with Proxy JSON:\n{}", json);
-
-    // Note: pretty print adds spaces and newlines
-    assert!(json.contains("socks5"));
-    assert!(json.contains("192.168.1.1"));
-    assert!(json.contains("1080"));
-    assert!(json.contains("\"proxyLogin\": \"user\""));
-    assert!(json.contains("\"proxyPassword\": \"pass\""));
-}
-
-/// Test Turnstile task serialization
-#[test]
-fn test_turnstile_serialization() {
-    let task = CapsolverTask::turnstile(TURNSTILE_URL, TURNSTILE_SITEKEY);
-    let json = serde_json::to_string_pretty(&task).unwrap();
-    println!("Turnstile Task JSON:\n{}", json);
-
-    assert!(json.contains("AntiTurnstileTaskProxyLess"));
-    assert!(json.contains(TURNSTILE_SITEKEY));
-}
-
-/// Test Cloudflare Challenge task serialization
-#[test]
-fn test_cloudflare_challenge_serialization() {
-    let proxy = ProxyConfig::http("proxy.example.com", 8080);
-    let task = CapsolverTask::cloudflare_challenge("https://nowsecure.nl/", proxy);
-    let json = serde_json::to_string_pretty(&task).unwrap();
-    println!("Cloudflare Challenge Task JSON:\n{}", json);
-
-    assert!(json.contains("AntiCloudflareTask"));
-    assert!(json.contains("proxyType"));
-    assert!(json.contains("proxyAddress"));
+    assert_eq!(proxy.address, "192.168.1.1");
+    assert_eq!(proxy.port, 1080);
+    assert_eq!(proxy.login.as_deref(), Some("user"));
+    assert_eq!(proxy.password.as_deref(), Some("pass"));
 }

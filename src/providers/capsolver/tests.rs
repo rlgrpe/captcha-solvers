@@ -1,9 +1,11 @@
-//! Tests for the Capsolver client and related functionality.
+//! Tests for the Capsolver provider and related functionality.
 
-use super::client::CapsolverClient;
 use super::errors::{CapsolverError, CapsolverErrorCode};
+use super::provider::CapsolverProvider;
 use super::response::CapsolverResponse;
-use super::types::{CapsolverTask, CreateTaskData, GetTaskData};
+use super::types::{CapsolverSolution, CreateTaskData, GetTaskData};
+use crate::provider::Provider;
+use crate::tasks::Turnstile;
 use crate::types::TaskId;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -23,9 +25,9 @@ struct TestSolution {
     g_recaptcha_response: String,
 }
 
-/// Create a mock client connected to the given mock server
-fn mock_client(server: &MockServer) -> CapsolverClient {
-    CapsolverClient::builder("test_api_key")
+/// Create a mock provider connected to the given mock server
+fn mock_provider(server: &MockServer) -> CapsolverProvider {
+    CapsolverProvider::builder("test_api_key")
         .url(Url::parse(&server.uri()).unwrap())
         .build()
         .unwrap()
@@ -88,7 +90,7 @@ fn processing_response(task_id: &str) -> Value {
 }
 
 // =============================================================================
-// Client Tests
+// Provider Tests
 // =============================================================================
 
 #[tokio::test]
@@ -100,10 +102,10 @@ async fn test_create_task_success() {
     )
     .await;
 
-    let client = mock_client(&server);
-    let task = CapsolverTask::turnstile("https://example.com", "test_key");
+    let provider = mock_provider(&server);
+    let task = Turnstile::new("https://example.com", "test_key");
 
-    let task_id = client.create_task(task).await.unwrap();
+    let task_id = provider.create_task(task.into()).await.unwrap();
     assert_eq!(task_id.as_ref(), "37223a89-06ed-442c-a0b8-22067b79c5b4");
 }
 
@@ -116,10 +118,10 @@ async fn test_create_task_api_error() {
     )
     .await;
 
-    let client = mock_client(&server);
-    let task = CapsolverTask::turnstile("https://example.com", "test_key");
+    let provider = mock_provider(&server);
+    let task = Turnstile::new("https://example.com", "test_key");
 
-    let err = client.create_task(task).await.unwrap_err();
+    let err = provider.create_task(task.into()).await.unwrap_err();
     match err {
         CapsolverError::Api(error) => {
             assert_eq!(error.error_id, 1);
@@ -134,17 +136,18 @@ async fn test_get_task_result_ready() {
     let server = MockServer::start().await;
     let solution = json!({
         "userAgent": "Mozilla/5.0...",
+        "token": "03AGdBq25SxXT-pmSeBXjzScW-EiocHwwpwqtk1QXlJnGnUJCZrgjwLLdt7cb0...",
         "gRecaptchaResponse": "03AGdBq25SxXT-pmSeBXjzScW-EiocHwwpwqtk1QXlJnGnUJCZrgjwLLdt7cb0..."
     });
     mock_get_task_result(&server, ready_solution_response("test-task-id", solution)).await;
 
-    let client = mock_client(&server);
+    let provider = mock_provider(&server);
     let task_id = TaskId::from("test-task-id");
 
-    let solution: Option<TestSolution> = client.get_task_result(&task_id).await.unwrap();
+    let solution: Option<CapsolverSolution> = provider.get_task_result(&task_id).await.unwrap();
     let solution = solution.unwrap();
-    assert_eq!(solution.user_agent, "Mozilla/5.0...");
-    assert!(solution.g_recaptcha_response.starts_with("03AGdBq25SxXT"));
+    let recaptcha = solution.into_recaptcha();
+    assert!(recaptcha.token().starts_with("03AGdBq25SxXT"));
 }
 
 #[tokio::test]
@@ -152,10 +155,10 @@ async fn test_get_task_result_processing() {
     let server = MockServer::start().await;
     mock_get_task_result(&server, processing_response("test-task-id")).await;
 
-    let client = mock_client(&server);
+    let provider = mock_provider(&server);
     let task_id = TaskId::from("test-task-id");
 
-    let solution: Option<TestSolution> = client.get_task_result(&task_id).await.unwrap();
+    let solution: Option<CapsolverSolution> = provider.get_task_result(&task_id).await.unwrap();
     assert!(solution.is_none());
 }
 
@@ -168,13 +171,10 @@ async fn test_get_task_result_api_error() {
     )
     .await;
 
-    let client = mock_client(&server);
+    let provider = mock_provider(&server);
     let task_id = TaskId::from("invalid-task-id");
 
-    let err: CapsolverError = client
-        .get_task_result::<TestSolution>(&task_id)
-        .await
-        .unwrap_err();
+    let err: CapsolverError = provider.get_task_result(&task_id).await.unwrap_err();
     match err {
         CapsolverError::Api(error) => {
             assert_eq!(error.error_id, 1);
@@ -191,18 +191,18 @@ async fn test_get_task_result_api_error() {
 
 #[test]
 fn test_builder_default_url() {
-    let client = CapsolverClient::new("test-key").unwrap();
-    assert_eq!(client.url.as_str(), "https://api.capsolver.com/");
+    let provider = CapsolverProvider::new("test-key").unwrap();
+    assert_eq!(provider.url().as_str(), "https://api.capsolver.com/");
 }
 
 #[test]
 fn test_builder_custom_url() {
     let custom_url = Url::parse("https://custom.example.com").unwrap();
-    let client = CapsolverClient::builder("test-key")
+    let provider = CapsolverProvider::builder("test-key")
         .url(custom_url.clone())
         .build()
         .unwrap();
-    assert_eq!(client.url, custom_url);
+    assert_eq!(*provider.url(), custom_url);
 }
 
 // =============================================================================

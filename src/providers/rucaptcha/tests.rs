@@ -1,9 +1,11 @@
-//! Tests for the RuCaptcha client and related functionality.
+//! Tests for the RuCaptcha provider and related functionality.
 
-use super::client::RucaptchaClient;
 use super::errors::{RucaptchaError, RucaptchaErrorCode};
+use super::provider::RucaptchaProvider;
 use super::response::RucaptchaResponse;
-use super::types::{CreateTaskData, GetTaskData, RucaptchaTask};
+use super::types::{CreateTaskData, GetTaskData, RucaptchaSolution};
+use crate::provider::Provider;
+use crate::tasks::Turnstile;
 use crate::types::TaskId;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -23,9 +25,9 @@ struct TestSolution {
     token: Option<String>,
 }
 
-/// Create a mock client connected to the given mock server
-fn mock_client(server: &MockServer) -> RucaptchaClient {
-    RucaptchaClient::builder("test_api_key")
+/// Create a mock provider connected to the given mock server
+fn mock_provider(server: &MockServer) -> RucaptchaProvider {
+    RucaptchaProvider::builder("test_api_key")
         .url(Url::parse(&server.uri()).unwrap())
         .build()
         .unwrap()
@@ -88,7 +90,7 @@ fn processing_response(task_id: &str) -> Value {
 }
 
 // =============================================================================
-// Client Tests
+// Provider Tests
 // =============================================================================
 
 #[tokio::test]
@@ -100,10 +102,10 @@ async fn test_create_task_success() {
     )
     .await;
 
-    let client = mock_client(&server);
-    let task = RucaptchaTask::turnstile("https://example.com", "test_key");
+    let provider = mock_provider(&server);
+    let task = Turnstile::new("https://example.com", "test_key");
 
-    let task_id = client.create_task(task).await.unwrap();
+    let task_id = provider.create_task(task.into()).await.unwrap();
     assert_eq!(task_id.as_ref(), "37223a89-06ed-442c-a0b8-22067b79c5b4");
 }
 
@@ -116,10 +118,10 @@ async fn test_create_task_api_error() {
     )
     .await;
 
-    let client = mock_client(&server);
-    let task = RucaptchaTask::turnstile("https://example.com", "test_key");
+    let provider = mock_provider(&server);
+    let task = Turnstile::new("https://example.com", "test_key");
 
-    let err = client.create_task(task).await.unwrap_err();
+    let err = provider.create_task(task.into()).await.unwrap_err();
     match err {
         RucaptchaError::Api(error) => {
             assert_eq!(error.error_id, 1);
@@ -138,12 +140,13 @@ async fn test_get_task_result_ready() {
     });
     mock_get_task_result(&server, ready_solution_response("test-task-id", solution)).await;
 
-    let client = mock_client(&server);
+    let provider = mock_provider(&server);
     let task_id = TaskId::from("test-task-id");
 
-    let solution: Option<TestSolution> = client.get_task_result(&task_id).await.unwrap();
+    let solution: Option<RucaptchaSolution> = provider.get_task_result(&task_id).await.unwrap();
     let solution = solution.unwrap();
-    assert!(solution.g_recaptcha_response.starts_with("03AGdBq25SxXT"));
+    let recaptcha = solution.into_recaptcha();
+    assert!(recaptcha.token().starts_with("03AGdBq25SxXT"));
 }
 
 #[tokio::test]
@@ -151,10 +154,10 @@ async fn test_get_task_result_processing() {
     let server = MockServer::start().await;
     mock_get_task_result(&server, processing_response("test-task-id")).await;
 
-    let client = mock_client(&server);
+    let provider = mock_provider(&server);
     let task_id = TaskId::from("test-task-id");
 
-    let solution: Option<TestSolution> = client.get_task_result(&task_id).await.unwrap();
+    let solution: Option<RucaptchaSolution> = provider.get_task_result(&task_id).await.unwrap();
     assert!(solution.is_none());
 }
 
@@ -167,13 +170,10 @@ async fn test_get_task_result_api_error() {
     )
     .await;
 
-    let client = mock_client(&server);
+    let provider = mock_provider(&server);
     let task_id = TaskId::from("invalid-task-id");
 
-    let err: RucaptchaError = client
-        .get_task_result::<TestSolution>(&task_id)
-        .await
-        .unwrap_err();
+    let err: RucaptchaError = provider.get_task_result(&task_id).await.unwrap_err();
     match err {
         RucaptchaError::Api(error) => {
             assert_eq!(error.error_id, 1);
@@ -190,18 +190,18 @@ async fn test_get_task_result_api_error() {
 
 #[test]
 fn test_builder_default_url() {
-    let client = RucaptchaClient::new("test-key").unwrap();
-    assert_eq!(client.url.as_str(), "https://api.rucaptcha.com/");
+    let provider = RucaptchaProvider::new("test-key").unwrap();
+    assert_eq!(provider.url().as_str(), "https://api.rucaptcha.com/");
 }
 
 #[test]
 fn test_builder_custom_url() {
     let custom_url = Url::parse("https://custom.example.com").unwrap();
-    let client = RucaptchaClient::builder("test-key")
+    let provider = RucaptchaProvider::builder("test-key")
         .url(custom_url.clone())
         .build()
         .unwrap();
-    assert_eq!(client.url, custom_url);
+    assert_eq!(*provider.url(), custom_url);
 }
 
 // =============================================================================
