@@ -10,8 +10,8 @@ mod common;
 
 use captcha_solvers::providers::rucaptcha::RucaptchaProvider;
 use captcha_solvers::{
-    CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait,
-    ProxyConfig, ReCaptchaV2, ReCaptchaV3, Turnstile,
+    CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ProxyConfig,
+    ReCaptchaV2, ReCaptchaV3, Turnstile,
 };
 use std::time::Duration;
 
@@ -206,8 +206,7 @@ async fn test_rucaptcha_recaptcha_v3() {
     skip_if_no_api_key!(api_key);
 
     let service = create_service(api_key.unwrap());
-    let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY)
-        .with_min_score(0.9);
+    let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY).with_min_score(0.9);
 
     println!("Solving ReCaptcha V3...");
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
@@ -238,7 +237,10 @@ async fn test_rucaptcha_recaptcha_v3_with_action() {
         .with_action(RECAPTCHA_V3_ACTION)
         .with_min_score(0.9);
 
-    println!("Solving ReCaptcha V3 with action '{}'...", RECAPTCHA_V3_ACTION);
+    println!(
+        "Solving ReCaptcha V3 with action '{}'...",
+        RECAPTCHA_V3_ACTION
+    );
     let result = service.solve_captcha(task, Duration::from_secs(120)).await;
 
     match result {
@@ -376,8 +378,7 @@ fn test_shared_task_types() {
     assert_eq!(task.min_score, Some(0.9));
 
     // Turnstile
-    let task = Turnstile::new(TURNSTILE_URL, TURNSTILE_SITEKEY)
-        .with_action("login");
+    let task = Turnstile::new(TURNSTILE_URL, TURNSTILE_SITEKEY).with_action("login");
     assert_eq!(task.action.as_deref(), Some("login"));
 }
 

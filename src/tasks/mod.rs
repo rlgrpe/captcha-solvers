@@ -70,11 +70,11 @@
 //! assert!(task.is_invisible());
 //! ```
 
-mod recaptcha;
 mod cloudflare;
+mod recaptcha;
 
-pub use recaptcha::{ReCaptchaV2, ReCaptchaV3};
 pub use cloudflare::{CloudflareChallenge, Turnstile};
+pub use recaptcha::{ReCaptchaV2, ReCaptchaV3};
 
 use std::fmt;
 

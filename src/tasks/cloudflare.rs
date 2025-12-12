@@ -269,24 +269,21 @@ mod tests {
 
     #[test]
     fn test_turnstile_with_action() {
-        let task = Turnstile::new("https://example.com", "key")
-            .with_action("login");
+        let task = Turnstile::new("https://example.com", "key").with_action("login");
 
         assert_eq!(task.action(), Some("login"));
     }
 
     #[test]
     fn test_turnstile_with_cdata() {
-        let task = Turnstile::new("https://example.com", "key")
-            .with_cdata("custom-data");
+        let task = Turnstile::new("https://example.com", "key").with_cdata("custom-data");
 
         assert_eq!(task.cdata(), Some("custom-data"));
     }
 
     #[test]
     fn test_turnstile_with_pagedata() {
-        let task = Turnstile::new("https://example.com", "key")
-            .with_pagedata("page-data");
+        let task = Turnstile::new("https://example.com", "key").with_pagedata("page-data");
 
         assert_eq!(task.pagedata, Some("page-data".to_string()));
     }
@@ -294,8 +291,7 @@ mod tests {
     #[test]
     fn test_turnstile_with_proxy() {
         let proxy = ProxyConfig::http("192.168.1.1", 8080);
-        let task = Turnstile::new("https://example.com", "key")
-            .with_proxy(proxy);
+        let task = Turnstile::new("https://example.com", "key").with_proxy(proxy);
 
         assert!(task.has_proxy());
         assert_eq!(task.proxy().unwrap().address, "192.168.1.1");
@@ -320,8 +316,7 @@ mod tests {
 
     #[test]
     fn test_turnstile_clone() {
-        let task = Turnstile::new("https://example.com", "key")
-            .with_action("login");
+        let task = Turnstile::new("https://example.com", "key").with_action("login");
 
         let cloned = task.clone();
         assert_eq!(cloned.website_url, task.website_url);
@@ -347,8 +342,8 @@ mod tests {
     #[test]
     fn test_cloudflare_challenge_with_user_agent() {
         let proxy = ProxyConfig::http("192.168.1.1", 8080);
-        let task = CloudflareChallenge::new("https://example.com", proxy)
-            .with_user_agent("Mozilla/5.0");
+        let task =
+            CloudflareChallenge::new("https://example.com", proxy).with_user_agent("Mozilla/5.0");
 
         assert_eq!(task.user_agent(), Some("Mozilla/5.0"));
     }
@@ -357,16 +352,14 @@ mod tests {
     fn test_cloudflare_challenge_with_html() {
         let proxy = ProxyConfig::http("192.168.1.1", 8080);
         let html = "<html>Just a moment...</html>";
-        let task = CloudflareChallenge::new("https://example.com", proxy)
-            .with_html(html);
+        let task = CloudflareChallenge::new("https://example.com", proxy).with_html(html);
 
         assert_eq!(task.html(), Some(html));
     }
 
     #[test]
     fn test_cloudflare_challenge_with_all_options() {
-        let proxy = ProxyConfig::socks5("proxy.example.com", 1080)
-            .with_auth("user", "pass");
+        let proxy = ProxyConfig::socks5("proxy.example.com", 1080).with_auth("user", "pass");
         let task = CloudflareChallenge::new("https://protected.com", proxy)
             .with_user_agent("Mozilla/5.0 (Windows NT 10.0)")
             .with_html("<html>Challenge page</html>");
@@ -381,8 +374,8 @@ mod tests {
     #[test]
     fn test_cloudflare_challenge_clone() {
         let proxy = ProxyConfig::http("192.168.1.1", 8080);
-        let task = CloudflareChallenge::new("https://example.com", proxy)
-            .with_user_agent("Mozilla");
+        let task =
+            CloudflareChallenge::new("https://example.com", proxy).with_user_agent("Mozilla");
 
         let cloned = task.clone();
         assert_eq!(cloned.website_url, task.website_url);

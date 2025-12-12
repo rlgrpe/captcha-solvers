@@ -36,7 +36,10 @@ where
 ///
 /// This is useful for APIs that expect numeric task IDs but our internal
 /// representation stores them as strings.
-pub fn serialize_string_as_number_if_possible<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_string_as_number_if_possible<S>(
+    value: &str,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {

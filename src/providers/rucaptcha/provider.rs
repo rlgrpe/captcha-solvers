@@ -1,6 +1,6 @@
 //! RuCaptcha provider implementation.
 
-use super::errors::{RucaptchaError, Result};
+use super::errors::{Result, RucaptchaError};
 use super::response::RucaptchaResponse;
 use super::types::{
     CreateTaskData, CreateTaskRequest, GetTaskData, GetTaskResultRequest, RucaptchaSolution,
@@ -280,9 +280,8 @@ impl Provider for RucaptchaProvider {
     async fn create_task(&self, task: CaptchaTask) -> Result<TaskId> {
         // Convert unified task to provider-specific format
         // CloudflareChallenge is not supported by RuCaptcha
-        let internal_task: RucaptchaTask = task
-            .try_into()
-            .map_err(RucaptchaError::UnsupportedTask)?;
+        let internal_task: RucaptchaTask =
+            task.try_into().map_err(RucaptchaError::UnsupportedTask)?;
         self.create_task_internal(internal_task).await
     }
 

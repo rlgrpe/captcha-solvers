@@ -8,12 +8,14 @@ pub fn load_env() {
 }
 
 /// Get Capsolver API key from environment
+#[allow(dead_code)]
 pub fn capsolver_api_key() -> Option<String> {
     load_env();
     env::var("CAPSOLVER_API_KEY").ok()
 }
 
 /// Get RuCaptcha API key from environment
+#[allow(dead_code)]
 pub fn rucaptcha_api_key() -> Option<String> {
     load_env();
     env::var("RUCAPTCHA_API_KEY").ok()
@@ -32,7 +34,9 @@ pub fn proxy_config() -> Option<captcha_solvers::ProxyConfig> {
 
     let host = env::var("PROXY_HOST").ok()?;
     let port: u16 = env::var("PROXY_PORT").ok()?.parse().ok()?;
-    let proxy_type = env::var("PROXY_TYPE").ok().unwrap_or_else(|| "http".to_string());
+    let proxy_type = env::var("PROXY_TYPE")
+        .ok()
+        .unwrap_or_else(|| "http".to_string());
 
     let proxy = match proxy_type.to_lowercase().as_str() {
         "https" => captcha_solvers::ProxyConfig::https(&host, port),

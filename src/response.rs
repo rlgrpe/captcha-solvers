@@ -106,8 +106,8 @@ macro_rules! impl_api_response_deserialize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::de::IntoDeserializer;
     use serde::Deserialize;
+    use serde::de::IntoDeserializer;
 
     #[derive(Debug, Deserialize, PartialEq)]
     struct TestData {

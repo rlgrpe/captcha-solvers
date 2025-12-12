@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 
 #[cfg(feature = "tracing")]
-use tracing::{error, info, warn, Span};
+use tracing::{Span, error, info, warn};
 
 /// Service-level errors that wrap provider errors
 #[derive(Debug, Error)]

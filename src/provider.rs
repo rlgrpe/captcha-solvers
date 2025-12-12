@@ -59,7 +59,10 @@ pub trait Provider: Send + Sync + Clone {
     ///
     /// # Returns
     /// * `task_id` - Unique identifier for this captcha task
-    fn create_task(&self, task: CaptchaTask) -> impl Future<Output = Result<TaskId, Self::Error>> + Send;
+    fn create_task(
+        &self,
+        task: CaptchaTask,
+    ) -> impl Future<Output = Result<TaskId, Self::Error>> + Send;
 
     /// Get the solution for a captcha task if available
     ///

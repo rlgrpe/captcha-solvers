@@ -111,7 +111,7 @@ mod tests;
 pub use errors::{RucaptchaApiError, RucaptchaError, RucaptchaErrorCode};
 
 // Provider
-pub use provider::{RucaptchaProvider, RucaptchaProviderBuilder, DEFAULT_API_URL};
+pub use provider::{DEFAULT_API_URL, RucaptchaProvider, RucaptchaProviderBuilder};
 
 // Solutions (public API)
 pub use types::{ReCaptchaSolution, RucaptchaSolution, TurnstileSolution};
