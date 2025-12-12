@@ -111,6 +111,18 @@ impl From<ProxyConfig> for RucaptchaProxyFields {
     }
 }
 
+impl ProxyConfig {
+    /// Convert to Capsolver-compatible proxy fields for task serialization
+    pub fn into_capsolver_fields(self) -> CapsolverProxyFields {
+        self.into()
+    }
+
+    /// Convert to RuCaptcha-compatible proxy fields for task serialization
+    pub fn into_rucaptcha_fields(self) -> RucaptchaProxyFields {
+        self.into()
+    }
+}
+
 /// Proxy configuration for captcha solving tasks
 ///
 /// # Examples

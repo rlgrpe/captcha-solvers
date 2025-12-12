@@ -1,6 +1,6 @@
 //! Task and solution types for the RuCaptcha API.
 
-use crate::proxy::{serialize_rucaptcha_proxy_type, ProxyType};
+use crate::proxy::RucaptchaProxyFields;
 use crate::serde_helpers::{deserialize_string_or_number, serialize_string_as_number_if_possible};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -56,17 +56,8 @@ pub enum RucaptchaTask {
         cookies: Option<String>,
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
-        // Proxy fields
-        #[serde(rename = "proxyType", serialize_with = "serialize_rucaptcha_proxy_type")]
-        proxy_type: ProxyType,
-        #[serde(rename = "proxyAddress")]
-        proxy_address: String,
-        #[serde(rename = "proxyPort")]
-        proxy_port: u16,
-        #[serde(rename = "proxyLogin", skip_serializing_if = "Option::is_none")]
-        proxy_login: Option<String>,
-        #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
-        proxy_password: Option<String>,
+        #[serde(flatten)]
+        proxy: RucaptchaProxyFields,
     },
 
     // -------------------------------------------------------------------------
@@ -106,17 +97,8 @@ pub enum RucaptchaTask {
         cookies: Option<String>,
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
-        // Proxy fields
-        #[serde(rename = "proxyType", serialize_with = "serialize_rucaptcha_proxy_type")]
-        proxy_type: ProxyType,
-        #[serde(rename = "proxyAddress")]
-        proxy_address: String,
-        #[serde(rename = "proxyPort")]
-        proxy_port: u16,
-        #[serde(rename = "proxyLogin", skip_serializing_if = "Option::is_none")]
-        proxy_login: Option<String>,
-        #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
-        proxy_password: Option<String>,
+        #[serde(flatten)]
+        proxy: RucaptchaProxyFields,
     },
 
     // -------------------------------------------------------------------------
@@ -167,29 +149,9 @@ pub enum RucaptchaTask {
         data: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pagedata: Option<String>,
-        // Proxy fields
-        #[serde(rename = "proxyType", serialize_with = "serialize_rucaptcha_proxy_type")]
-        proxy_type: ProxyType,
-        #[serde(rename = "proxyAddress")]
-        proxy_address: String,
-        #[serde(rename = "proxyPort")]
-        proxy_port: u16,
-        #[serde(rename = "proxyLogin", skip_serializing_if = "Option::is_none")]
-        proxy_login: Option<String>,
-        #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
-        proxy_password: Option<String>,
+        #[serde(flatten)]
+        proxy: RucaptchaProxyFields,
     },
-}
-
-/// Turnstile metadata for challenge pages
-#[derive(Debug, Clone, Default)]
-pub struct TurnstileMetadata {
-    /// Value from turnstile.render action parameter
-    pub action: Option<String>,
-    /// Value from turnstile.render cData parameter
-    pub data: Option<String>,
-    /// Value from turnstile.render chlPageData parameter
-    pub pagedata: Option<String>,
 }
 
 impl Display for RucaptchaTask {
@@ -212,6 +174,9 @@ impl Display for RucaptchaTask {
 // ============================================================================
 // Solution Types
 // ============================================================================
+
+// Re-export shared solution types for convenience
+pub use crate::solutions::{ReCaptchaSolution, TurnstileSolution};
 
 /// RuCaptcha solution types
 #[derive(Debug, Clone, Deserialize)]
@@ -281,40 +246,6 @@ impl RucaptchaSolution {
     }
 }
 
-/// ReCaptcha solution (V2 and V3)
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReCaptchaSolution {
-    /// The reCAPTCHA token
-    #[serde(rename = "gRecaptchaResponse")]
-    pub g_recaptcha_response: String,
-    /// Alias for gRecaptchaResponse
-    #[serde(default)]
-    pub token: Option<String>,
-}
-
-impl ReCaptchaSolution {
-    /// Get the reCAPTCHA token
-    pub fn token(&self) -> &str {
-        &self.g_recaptcha_response
-    }
-}
-
-/// Turnstile captcha solution
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TurnstileSolution {
-    /// The solved Turnstile token
-    pub token: String,
-}
-
-impl TurnstileSolution {
-    /// Get the Turnstile token
-    pub fn token(&self) -> &str {
-        &self.token
-    }
-}
-
 // ============================================================================
 // Internal Types (Request/Response)
 // ============================================================================
@@ -372,11 +303,7 @@ impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
                 user_agent: task.user_agent,
                 cookies: task.cookies,
                 api_domain: task.api_domain,
-                proxy_type: proxy.proxy_type,
-                proxy_address: proxy.address,
-                proxy_port: proxy.port,
-                proxy_login: proxy.login,
-                proxy_password: proxy.password,
+                proxy: proxy.into_rucaptcha_fields(),
             },
             // Enterprise without proxy
             (true, None) => Self::RecaptchaV2EnterpriseTaskProxyless {
@@ -397,11 +324,7 @@ impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
                 user_agent: task.user_agent,
                 cookies: task.cookies,
                 api_domain: task.api_domain,
-                proxy_type: proxy.proxy_type,
-                proxy_address: proxy.address,
-                proxy_port: proxy.port,
-                proxy_login: proxy.login,
-                proxy_password: proxy.password,
+                proxy: proxy.into_rucaptcha_fields(),
             },
             // Standard without proxy
             (false, None) => Self::RecaptchaV2TaskProxyless {
@@ -443,11 +366,7 @@ impl From<crate::tasks::Turnstile> for RucaptchaTask {
                 action: task.action,
                 data: task.cdata,
                 pagedata: task.pagedata,
-                proxy_type: proxy.proxy_type,
-                proxy_address: proxy.address,
-                proxy_port: proxy.port,
-                proxy_login: proxy.login,
-                proxy_password: proxy.password,
+                proxy: proxy.into_rucaptcha_fields(),
             },
             None => Self::TurnstileTaskProxyless {
                 website_url: task.website_url,
@@ -497,7 +416,7 @@ impl TryFrom<crate::tasks::CaptchaTask> for RucaptchaTask {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proxy::ProxyConfig;
+    use crate::proxy::{ProxyConfig, ProxyType};
     use crate::tasks::{CloudflareChallenge, ReCaptchaV2, ReCaptchaV3, Turnstile};
 
     #[test]

@@ -159,6 +159,7 @@ pub mod response;
 pub mod retry;
 pub mod serde_helpers;
 pub mod service;
+pub mod solutions;
 pub mod tasks;
 pub mod types;
 
@@ -173,5 +174,6 @@ pub use retry::RetryConfig;
 pub use service::{
     CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ServiceError,
 };
+pub use solutions::{CloudflareChallengeSolution, ReCaptchaSolution, TurnstileSolution};
 pub use tasks::{CaptchaTask, CloudflareChallenge, ReCaptchaV2, ReCaptchaV3, Turnstile};
 pub use types::TaskId;
