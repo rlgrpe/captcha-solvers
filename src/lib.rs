@@ -153,6 +153,7 @@ pub mod types;
 pub use errors::RetryableError;
 pub use provider::{Provider, RetryableProvider};
 pub use proxy::{ProxyConfig, ProxyType};
+pub use retry::RetryConfig;
 pub use service::{
     CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ServiceError,
 };

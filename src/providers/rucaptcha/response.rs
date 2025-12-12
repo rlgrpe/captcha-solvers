@@ -20,21 +20,6 @@ impl<T> RucaptchaResponse<T> {
             Self::Error(e) => Err(e),
         }
     }
-
-    /// Check without consuming
-    #[allow(dead_code)]
-    pub fn is_success(&self) -> bool {
-        matches!(self, Self::Success(_))
-    }
-
-    /// Reference to data if success
-    #[allow(dead_code)]
-    pub fn as_success(&self) -> Option<&T> {
-        match self {
-            Self::Success(data) => Some(data),
-            Self::Error(_) => None,
-        }
-    }
 }
 
 impl<'de, T> Deserialize<'de> for RucaptchaResponse<T>

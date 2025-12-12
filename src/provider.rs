@@ -1,5 +1,5 @@
 use crate::errors::RetryableError;
-use crate::retry::default_retry_strategy;
+use crate::retry::RetryConfig;
 use crate::types::TaskId;
 use backon::Retryable;
 use std::error::Error as StdError;
@@ -95,9 +95,19 @@ pub trait Provider: Send + Sync + Clone {
 ///
 /// ```rust,ignore
 /// use captcha_solvers::{Provider, RetryableProvider};
+/// use captcha_solvers::retry::RetryConfig;
+/// use std::time::Duration;
 ///
 /// let base_provider = CapsolverProvider::new(client);
-/// let provider = RetryableProvider::new(base_provider);
+///
+/// // With default retry config
+/// let provider = RetryableProvider::new(base_provider.clone());
+///
+/// // With custom retry config
+/// let custom_config = RetryConfig::default()
+///     .with_max_retries(5)
+///     .with_min_delay(Duration::from_millis(500));
+/// let provider = RetryableProvider::with_config(base_provider, custom_config);
 ///
 /// // Now all operations automatically retry on transient errors
 /// let task_id = provider.create_task(task).await?;
@@ -105,17 +115,34 @@ pub trait Provider: Send + Sync + Clone {
 #[derive(Debug, Clone)]
 pub struct RetryableProvider<P: Provider> {
     inner: P,
+    retry_config: RetryConfig,
 }
 
 impl<P: Provider> RetryableProvider<P> {
-    /// Wrap a provider with retry logic
+    /// Wrap a provider with default retry logic
     pub fn new(inner: P) -> Self {
-        Self { inner }
+        Self {
+            inner,
+            retry_config: RetryConfig::default(),
+        }
+    }
+
+    /// Wrap a provider with custom retry configuration
+    pub fn with_config(inner: P, retry_config: RetryConfig) -> Self {
+        Self {
+            inner,
+            retry_config,
+        }
     }
 
     /// Get reference to the inner provider
     pub fn inner(&self) -> &P {
         &self.inner
+    }
+
+    /// Get reference to the retry configuration
+    pub fn retry_config(&self) -> &RetryConfig {
+        &self.retry_config
     }
 }
 
@@ -139,7 +166,7 @@ where
         let inner = self.inner.clone();
         let task_clone = task.clone();
         (|| async { inner.create_task(task_clone.clone()).await })
-            .retry(default_retry_strategy())
+            .retry(self.retry_config.build_strategy())
             .when(|err: &Self::Error| err.is_retryable())
             .notify(|err, duration| {
                 let _ = (err, duration);
@@ -169,7 +196,7 @@ where
         let inner = self.inner.clone();
         let task_id = task_id.clone();
         (|| async { inner.get_task_result(&task_id).await })
-            .retry(default_retry_strategy())
+            .retry(self.retry_config.build_strategy())
             .when(|err: &Self::Error| err.is_retryable())
             .notify(|err, duration| {
                 let _ = (err, duration);

@@ -239,8 +239,7 @@ fn test_capsolver_response_deserialization_success() {
     }"#;
 
     let response: CapsolverResponse<CreateTaskData> = serde_json::from_str(json).unwrap();
-    assert!(response.is_success());
-    let data = response.into_result().unwrap();
+    let data = response.into_result().expect("expected success response");
     assert_eq!(data.task_id, "37223a89-06ed-442c-a0b8-22067b79c5b4");
 }
 
@@ -253,8 +252,7 @@ fn test_capsolver_response_deserialization_error() {
     }"#;
 
     let response: CapsolverResponse<CreateTaskData> = serde_json::from_str(json).unwrap();
-    assert!(!response.is_success());
-    let error = response.into_result().unwrap_err();
+    let error = response.into_result().expect_err("expected error response");
     assert_eq!(error.error_id, 1);
     assert_eq!(error.error_code, CapsolverErrorCode::ZeroBalance);
     assert_eq!(error.error_description, Some("Error Description".to_string()));
@@ -273,11 +271,9 @@ fn test_capsolver_response_get_task_ready() {
     }"#;
 
     let response: CapsolverResponse<GetTaskData<TestSolution>> = serde_json::from_str(json).unwrap();
-    assert!(response.is_success());
-    let data = response.into_result().unwrap();
+    let data = response.into_result().expect("expected success response");
     assert_eq!(data.status, "ready");
-    assert!(data.solution.is_some());
-    let solution = data.solution.unwrap();
+    let solution = data.solution.expect("expected solution");
     assert_eq!(solution.user_agent, "xxx");
 }
 
@@ -290,8 +286,7 @@ fn test_capsolver_response_get_task_processing() {
     }"#;
 
     let response: CapsolverResponse<GetTaskData<TestSolution>> = serde_json::from_str(json).unwrap();
-    assert!(response.is_success());
-    let data = response.into_result().unwrap();
+    let data = response.into_result().expect("expected success response");
     assert_eq!(data.status, "processing");
     assert!(data.solution.is_none());
 }

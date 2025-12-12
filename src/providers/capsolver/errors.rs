@@ -33,11 +33,24 @@ impl RetryableError for CapsolverError {
         match self {
             // Retryable HTTP/network errors
             CapsolverError::HttpRequest(_) => true,
-            // Timeouts are considered retryable
-            CapsolverError::SolutionTimeout { .. } => true,
+            // Timeouts are NOT retryable at task level (task already expired)
+            CapsolverError::SolutionTimeout { .. } => false,
             // API errors are retryable based on error code
             CapsolverError::Api(error) => error.error_code.is_retryable(),
             // Non-retryable errors
+            CapsolverError::BuildHttpClient(_) | CapsolverError::ParseResponse(_) => false,
+        }
+    }
+
+    fn should_retry_operation(&self) -> bool {
+        match self {
+            // HTTP errors - retry the operation
+            CapsolverError::HttpRequest(_) => true,
+            // Timeouts - the task expired but a fresh attempt might work
+            CapsolverError::SolutionTimeout { .. } => true,
+            // API errors have their own logic
+            CapsolverError::Api(error) => error.error_code.should_retry_operation(),
+            // Configuration errors - won't work until fixed
             CapsolverError::BuildHttpClient(_) | CapsolverError::ParseResponse(_) => false,
         }
     }
@@ -155,6 +168,7 @@ impl<'de> Deserialize<'de> for CapsolverErrorCode {
 }
 
 impl CapsolverErrorCode {
+    /// Returns true if the same task should be retried
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
@@ -162,8 +176,38 @@ impl CapsolverErrorCode {
                 | Self::RateLimit
                 | Self::IpBanned
                 | Self::KeyTempBlocked
-                | Self::TaskNotFound
         )
+    }
+
+    /// Returns true if a fresh solve operation (new task) might succeed
+    pub fn should_retry_operation(&self) -> bool {
+        match self {
+            // Transient server errors - retry everything
+            Self::ServiceUnavailable
+            | Self::RateLimit
+            | Self::IpBanned
+            | Self::KeyTempBlocked
+            | Self::TaskNotFound => true,
+
+            // Task-specific failures - fresh attempt might work
+            Self::TaskTimeout | Self::CaptchaUnsolvable => true,
+
+            // Account/configuration issues - won't work until fixed
+            Self::ZeroBalance
+            | Self::KeyDeniedAccess
+            | Self::InvalidTaskData
+            | Self::BadRequest
+            | Self::TaskIdInvalid
+            | Self::TaskNotSupported
+            | Self::UnknownQuestion
+            | Self::ProxyBanned
+            | Self::InvalidImage
+            | Self::ParseImageFail
+            | Self::SettlementFailed => false,
+
+            // Unknown errors - conservative: don't retry
+            Self::Other(_) => false,
+        }
     }
 }
 

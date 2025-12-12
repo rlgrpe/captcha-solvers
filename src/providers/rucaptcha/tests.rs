@@ -210,17 +210,25 @@ fn test_builder_custom_url() {
 
 #[test]
 fn test_error_code_retryability() {
-    // Retryable errors
+    // Task-level retryable errors (same task can be retried)
     assert!(RucaptchaErrorCode::NoSlotAvailable.is_retryable());
-    assert!(RucaptchaErrorCode::ZeroBalance.is_retryable());
-    assert!(RucaptchaErrorCode::CaptchaUnsolvable.is_retryable());
 
-    // Non-retryable errors
+    // Non-retryable at task level
+    assert!(!RucaptchaErrorCode::ZeroBalance.is_retryable());
+    assert!(!RucaptchaErrorCode::CaptchaUnsolvable.is_retryable());
     assert!(!RucaptchaErrorCode::KeyDoesNotExist.is_retryable());
     assert!(!RucaptchaErrorCode::BadParameters.is_retryable());
     assert!(!RucaptchaErrorCode::NoSuchCaptchaId.is_retryable());
     assert!(!RucaptchaErrorCode::TaskNotSupported.is_retryable());
     assert!(!RucaptchaErrorCode::Unknown.is_retryable());
+
+    // Operation-level retryable (fresh task might succeed)
+    assert!(RucaptchaErrorCode::NoSlotAvailable.should_retry_operation());
+    assert!(RucaptchaErrorCode::CaptchaUnsolvable.should_retry_operation());
+
+    // Not retryable at operation level (need to fix account/configuration)
+    assert!(!RucaptchaErrorCode::ZeroBalance.should_retry_operation());
+    assert!(!RucaptchaErrorCode::KeyDoesNotExist.should_retry_operation());
 }
 
 // =============================================================================
@@ -237,8 +245,7 @@ fn test_rucaptcha_response_deserialization_success() {
     }"#;
 
     let response: RucaptchaResponse<CreateTaskData> = serde_json::from_str(json).unwrap();
-    assert!(response.is_success());
-    let data = response.into_result().unwrap();
+    let data = response.into_result().expect("expected success response");
     assert_eq!(data.task_id, "37223a89-06ed-442c-a0b8-22067b79c5b4");
 }
 
@@ -251,8 +258,7 @@ fn test_rucaptcha_response_deserialization_error() {
     }"#;
 
     let response: RucaptchaResponse<CreateTaskData> = serde_json::from_str(json).unwrap();
-    assert!(!response.is_success());
-    let error = response.into_result().unwrap_err();
+    let error = response.into_result().expect_err("expected error response");
     assert_eq!(error.error_id, 1);
     assert_eq!(error.error_code, RucaptchaErrorCode::ZeroBalance);
     assert_eq!(error.error_description, Some("Error Description".to_string()));
@@ -271,11 +277,9 @@ fn test_rucaptcha_response_get_task_ready() {
     }"#;
 
     let response: RucaptchaResponse<GetTaskData<TestSolution>> = serde_json::from_str(json).unwrap();
-    assert!(response.is_success());
-    let data = response.into_result().unwrap();
+    let data = response.into_result().expect("expected success response");
     assert_eq!(data.status, "ready");
-    assert!(data.solution.is_some());
-    let solution = data.solution.unwrap();
+    let solution = data.solution.expect("expected solution");
     assert!(solution.g_recaptcha_response.starts_with("03AGdBq25SxXT"));
 }
 
@@ -288,8 +292,7 @@ fn test_rucaptcha_response_get_task_processing() {
     }"#;
 
     let response: RucaptchaResponse<GetTaskData<TestSolution>> = serde_json::from_str(json).unwrap();
-    assert!(response.is_success());
-    let data = response.into_result().unwrap();
+    let data = response.into_result().expect("expected success response");
     assert_eq!(data.status, "processing");
     assert!(data.solution.is_none());
 }

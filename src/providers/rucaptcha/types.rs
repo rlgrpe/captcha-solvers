@@ -477,7 +477,7 @@ pub enum RucaptchaSolution {
 }
 
 impl RucaptchaSolution {
-    /// Try to extract ReCaptcha solution
+    /// Try to extract ReCaptcha solution (returns reference)
     pub fn as_recaptcha(&self) -> Option<&ReCaptchaSolution> {
         match self {
             Self::ReCaptcha(solution) => Some(solution),
@@ -485,15 +485,27 @@ impl RucaptchaSolution {
         }
     }
 
-    /// Extract ReCaptcha solution, panics if not ReCaptcha
-    pub fn into_recaptcha(self) -> ReCaptchaSolution {
+    /// Try to extract ReCaptcha solution (consumes self)
+    ///
+    /// Returns `Ok(solution)` if this is a ReCaptcha solution, or `Err(self)` otherwise.
+    pub fn try_into_recaptcha(self) -> Result<ReCaptchaSolution, Self> {
         match self {
-            Self::ReCaptcha(solution) => solution,
-            _ => panic!("Expected ReCaptcha solution"),
+            Self::ReCaptcha(solution) => Ok(solution),
+            other => Err(other),
         }
     }
 
-    /// Try to extract Turnstile solution
+    /// Extract ReCaptcha solution, panics if not ReCaptcha
+    ///
+    /// # Panics
+    /// Panics if the solution is not a ReCaptcha solution.
+    /// Use `try_into_recaptcha()` for a non-panicking alternative.
+    pub fn into_recaptcha(self) -> ReCaptchaSolution {
+        self.try_into_recaptcha()
+            .expect("Expected ReCaptcha solution")
+    }
+
+    /// Try to extract Turnstile solution (returns reference)
     pub fn as_turnstile(&self) -> Option<&TurnstileSolution> {
         match self {
             Self::Turnstile(solution) => Some(solution),
@@ -501,12 +513,24 @@ impl RucaptchaSolution {
         }
     }
 
-    /// Extract Turnstile solution, panics if not Turnstile
-    pub fn into_turnstile(self) -> TurnstileSolution {
+    /// Try to extract Turnstile solution (consumes self)
+    ///
+    /// Returns `Ok(solution)` if this is a Turnstile solution, or `Err(self)` otherwise.
+    pub fn try_into_turnstile(self) -> Result<TurnstileSolution, Self> {
         match self {
-            Self::Turnstile(solution) => solution,
-            _ => panic!("Expected Turnstile solution"),
+            Self::Turnstile(solution) => Ok(solution),
+            other => Err(other),
         }
+    }
+
+    /// Extract Turnstile solution, panics if not Turnstile
+    ///
+    /// # Panics
+    /// Panics if the solution is not a Turnstile solution.
+    /// Use `try_into_turnstile()` for a non-panicking alternative.
+    pub fn into_turnstile(self) -> TurnstileSolution {
+        self.try_into_turnstile()
+            .expect("Expected Turnstile solution")
     }
 }
 

@@ -17,7 +17,10 @@ pub enum ServiceError<E: StdError + 'static> {
     Provider {
         #[source]
         source: E,
+        /// Whether the same task can be retried
         is_retryable: bool,
+        /// Whether a fresh solve operation might succeed
+        should_retry_operation: bool,
     },
 
     #[error(
@@ -31,6 +34,18 @@ impl<E: StdError + 'static> RetryableError for ServiceError<E> {
     fn is_retryable(&self) -> bool {
         match self {
             ServiceError::Provider { is_retryable, .. } => *is_retryable,
+            // Can't retry the same task after timeout
+            ServiceError::SolutionTimeout { .. } => false,
+        }
+    }
+
+    fn should_retry_operation(&self) -> bool {
+        match self {
+            ServiceError::Provider {
+                should_retry_operation,
+                ..
+            } => *should_retry_operation,
+            // A fresh task attempt might succeed after timeout
             ServiceError::SolutionTimeout { .. } => true,
         }
     }
@@ -119,6 +134,16 @@ where
         Self { provider, config }
     }
 
+    /// Create a new captcha solver service with default configuration
+    ///
+    /// This is a convenience method equivalent to:
+    /// ```rust,ignore
+    /// CaptchaSolverService::new(provider, CaptchaSolverServiceConfig::default())
+    /// ```
+    pub fn with_provider(provider: P) -> Self {
+        Self::new(provider, CaptchaSolverServiceConfig::default())
+    }
+
     /// Get reference to the underlying provider
     pub fn provider(&self) -> &P {
         &self.provider
@@ -158,9 +183,11 @@ where
         // Create the task
         let task_id = self.provider.create_task(task).await.map_err(|e| {
             let is_retryable = e.is_retryable();
+            let should_retry_operation = e.should_retry_operation();
             ServiceError::Provider {
                 source: e,
                 is_retryable,
+                should_retry_operation,
             }
         })?;
 
@@ -201,6 +228,7 @@ where
                 }
                 Err(e) if !e.is_retryable() => {
                     // Permanent error - return immediately
+                    let should_retry_operation = e.should_retry_operation();
                     #[cfg(feature = "tracing")]
                     error!(
                         error = %e,
@@ -209,6 +237,7 @@ where
                     return Err(ServiceError::Provider {
                         source: e,
                         is_retryable: false,
+                        should_retry_operation,
                     });
                 }
                 Err(_e) => {

@@ -36,11 +36,24 @@ impl RetryableError for RucaptchaError {
         match self {
             // Retryable HTTP/network errors
             RucaptchaError::HttpRequest(_) => true,
-            // Timeouts are considered retryable
-            RucaptchaError::SolutionTimeout { .. } => true,
+            // Timeouts are NOT retryable at task level (task already expired)
+            RucaptchaError::SolutionTimeout { .. } => false,
             // API errors are retryable based on error code
             RucaptchaError::Api(error) => error.error_code.is_retryable(),
             // Non-retryable errors
+            RucaptchaError::BuildHttpClient(_) | RucaptchaError::ParseResponse(_) => false,
+        }
+    }
+
+    fn should_retry_operation(&self) -> bool {
+        match self {
+            // HTTP errors - retry the operation
+            RucaptchaError::HttpRequest(_) => true,
+            // Timeouts - the task expired but a fresh attempt might work
+            RucaptchaError::SolutionTimeout { .. } => true,
+            // API errors have their own logic
+            RucaptchaError::Api(error) => error.error_code.should_retry_operation(),
+            // Configuration errors - won't work until fixed
             RucaptchaError::BuildHttpClient(_) | RucaptchaError::ParseResponse(_) => false,
         }
     }
@@ -139,12 +152,45 @@ pub enum RucaptchaErrorCode {
 }
 
 impl RucaptchaErrorCode {
-    /// Check if this error code indicates a retryable error
+    /// Returns true if the same task should be retried
     pub fn is_retryable(&self) -> bool {
-        matches!(
-            self,
-            Self::NoSlotAvailable | Self::CaptchaUnsolvable | Self::ZeroBalance
-        )
+        matches!(self, Self::NoSlotAvailable)
+    }
+
+    /// Returns true if a fresh solve operation (new task) might succeed
+    pub fn should_retry_operation(&self) -> bool {
+        match self {
+            // Transient server errors - retry
+            Self::NoSlotAvailable => true,
+
+            // Task-specific failures - fresh attempt might work
+            Self::CaptchaUnsolvable => true,
+
+            // Account issues - need to fix before retry
+            Self::ZeroBalance
+            | Self::KeyDoesNotExist
+            | Self::IpNotAllowed
+            | Self::IpBlocked
+            | Self::AccountSuspended => false,
+
+            // Configuration/validation issues - won't work until fixed
+            Self::ZeroCaptchaFilesize
+            | Self::TooBigCaptchaFilesize
+            | Self::PageUrl
+            | Self::BadDuplicates
+            | Self::NoSuchMethod
+            | Self::ImageTypeNotSupported
+            | Self::NoSuchCaptchaId
+            | Self::TaskAbsent
+            | Self::TaskNotSupported
+            | Self::RecaptchaInvalidSitekey
+            | Self::BadParameters
+            | Self::BadImgInstructions
+            | Self::BadProxy => false,
+
+            // Unknown errors - conservative: don't retry
+            Self::Unknown => false,
+        }
     }
 }
 
