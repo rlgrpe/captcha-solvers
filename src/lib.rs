@@ -141,18 +141,24 @@
 //!     .build()?;
 //! ```
 
+pub mod client;
 pub mod errors;
 pub mod provider;
 pub mod providers;
 pub mod proxy;
+pub mod response;
 pub mod retry;
+pub mod serde_helpers;
 pub mod service;
 pub mod types;
 
 // Re-export commonly used types at the crate root
 pub use errors::RetryableError;
 pub use provider::{Provider, RetryableProvider};
-pub use proxy::{ProxyConfig, ProxyType};
+pub use proxy::{
+    CapsolverProxyFields, ProxyConfig, ProxyType, RucaptchaProxyFields,
+    serialize_capsolver_proxy_type, serialize_rucaptcha_proxy_type,
+};
 pub use retry::RetryConfig;
 pub use service::{
     CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ServiceError,

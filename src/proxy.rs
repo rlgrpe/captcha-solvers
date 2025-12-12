@@ -3,7 +3,7 @@
 //! This module provides a unified proxy configuration that can be used
 //! with any provider that supports proxy-based captcha solving.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 /// Proxy type for tasks requiring custom proxy
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -13,6 +13,102 @@ pub enum ProxyType {
     Https,
     Socks4,
     Socks5,
+}
+
+impl ProxyType {
+    /// Get the string representation for Capsolver API (includes https)
+    pub fn as_capsolver_str(&self) -> &'static str {
+        match self {
+            ProxyType::Http => "http",
+            ProxyType::Https => "https",
+            ProxyType::Socks4 => "socks4",
+            ProxyType::Socks5 => "socks5",
+        }
+    }
+
+    /// Get the string representation for RuCaptcha API (http/https both map to http)
+    pub fn as_rucaptcha_str(&self) -> &'static str {
+        match self {
+            ProxyType::Http | ProxyType::Https => "http",
+            ProxyType::Socks4 => "socks4",
+            ProxyType::Socks5 => "socks5",
+        }
+    }
+}
+
+/// Proxy fields for serialization into task payloads (Capsolver format)
+///
+/// This struct can be flattened into task variants to avoid repeating
+/// the same 5 proxy fields in every variant.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CapsolverProxyFields {
+    #[serde(rename = "proxyType", serialize_with = "serialize_capsolver_proxy_type")]
+    pub proxy_type: ProxyType,
+    #[serde(rename = "proxyAddress")]
+    pub proxy_address: String,
+    #[serde(rename = "proxyPort")]
+    pub proxy_port: u16,
+    #[serde(rename = "proxyLogin", skip_serializing_if = "Option::is_none")]
+    pub proxy_login: Option<String>,
+    #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
+    pub proxy_password: Option<String>,
+}
+
+/// Proxy fields for serialization into task payloads (RuCaptcha format)
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RucaptchaProxyFields {
+    #[serde(rename = "proxyType", serialize_with = "serialize_rucaptcha_proxy_type")]
+    pub proxy_type: ProxyType,
+    #[serde(rename = "proxyAddress")]
+    pub proxy_address: String,
+    #[serde(rename = "proxyPort")]
+    pub proxy_port: u16,
+    #[serde(rename = "proxyLogin", skip_serializing_if = "Option::is_none")]
+    pub proxy_login: Option<String>,
+    #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
+    pub proxy_password: Option<String>,
+}
+
+/// Serialize ProxyType for Capsolver API
+pub fn serialize_capsolver_proxy_type<S>(proxy_type: &ProxyType, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(proxy_type.as_capsolver_str())
+}
+
+/// Serialize ProxyType for RuCaptcha API
+pub fn serialize_rucaptcha_proxy_type<S>(proxy_type: &ProxyType, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(proxy_type.as_rucaptcha_str())
+}
+
+impl From<ProxyConfig> for CapsolverProxyFields {
+    fn from(config: ProxyConfig) -> Self {
+        Self {
+            proxy_type: config.proxy_type,
+            proxy_address: config.address,
+            proxy_port: config.port,
+            proxy_login: config.login,
+            proxy_password: config.password,
+        }
+    }
+}
+
+impl From<ProxyConfig> for RucaptchaProxyFields {
+    fn from(config: ProxyConfig) -> Self {
+        Self {
+            proxy_type: config.proxy_type,
+            proxy_address: config.address,
+            proxy_port: config.port,
+            proxy_login: config.login,
+            proxy_password: config.password,
+        }
+    }
 }
 
 /// Proxy configuration for captcha solving tasks

@@ -1,49 +1,9 @@
 //! Task and solution types for the RuCaptcha API.
 
-use crate::proxy::{ProxyConfig, ProxyType};
-use serde::{Deserialize, Deserializer, Serialize};
+use crate::proxy::{serialize_rucaptcha_proxy_type, ProxyConfig, ProxyType};
+use crate::serde_helpers::{deserialize_string_or_number, serialize_string_as_number_if_possible};
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-
-/// Deserialize a value that can be either a string or a number into a String
-fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    use serde::de::Error;
-    let value = serde_json::Value::deserialize(deserializer)?;
-    match value {
-        serde_json::Value::String(s) => Ok(s),
-        serde_json::Value::Number(n) => Ok(n.to_string()),
-        _ => Err(D::Error::custom("expected string or number")),
-    }
-}
-
-/// Serialize a string as a number if it's numeric, otherwise as a string
-fn serialize_string_as_number_if_possible<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    // Try to parse as u64 first (most common for task IDs)
-    if let Ok(n) = value.parse::<u64>() {
-        return serializer.serialize_u64(n);
-    }
-    // Fall back to string
-    serializer.serialize_str(value)
-}
-
-/// Serialize ProxyType field for serde (RuCaptcha uses lowercase)
-fn serialize_proxy_type_field<S>(proxy_type: &ProxyType, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let type_str = match proxy_type {
-        // RuCaptcha only supports http, socks4, socks5 (not https separately)
-        ProxyType::Http | ProxyType::Https => "http",
-        ProxyType::Socks4 => "socks4",
-        ProxyType::Socks5 => "socks5",
-    };
-    serializer.serialize_str(type_str)
-}
 
 // ============================================================================
 // Task Types
@@ -97,7 +57,7 @@ pub enum RucaptchaTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         // Proxy fields
-        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_rucaptcha_proxy_type")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,
@@ -147,7 +107,7 @@ pub enum RucaptchaTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         // Proxy fields
-        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_rucaptcha_proxy_type")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,
@@ -208,7 +168,7 @@ pub enum RucaptchaTask {
         #[serde(skip_serializing_if = "Option::is_none")]
         pagedata: Option<String>,
         // Proxy fields
-        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_rucaptcha_proxy_type")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,

@@ -1,21 +1,7 @@
-use crate::proxy::{ProxyConfig, ProxyType};
+use crate::proxy::{serialize_capsolver_proxy_type, ProxyConfig, ProxyType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
-
-/// Serialize ProxyType field for serde
-fn serialize_proxy_type_field<S>(proxy_type: &ProxyType, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let type_str = match proxy_type {
-        ProxyType::Http => "http",
-        ProxyType::Https => "https",
-        ProxyType::Socks4 => "socks4",
-        ProxyType::Socks5 => "socks5",
-    };
-    serializer.serialize_str(type_str)
-}
 
 // ============================================================================
 // Task Types
@@ -62,7 +48,7 @@ pub enum CapsolverTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         // Proxy fields
-        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_capsolver_proxy_type")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,
@@ -104,7 +90,7 @@ pub enum CapsolverTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         // Proxy fields
-        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_capsolver_proxy_type")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,
@@ -141,7 +127,7 @@ pub enum CapsolverTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         // Proxy fields
-        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_capsolver_proxy_type")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,
@@ -193,7 +179,7 @@ pub enum CapsolverTask {
         #[serde(skip_serializing_if = "Option::is_none")]
         html: Option<String>,
         // Proxy fields (static or sticky proxy, not rotating)
-        #[serde(rename = "proxyType", serialize_with = "serialize_proxy_type_field")]
+        #[serde(rename = "proxyType", serialize_with = "serialize_capsolver_proxy_type")]
         proxy_type: ProxyType,
         #[serde(rename = "proxyAddress")]
         proxy_address: String,

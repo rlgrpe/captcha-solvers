@@ -1,8 +1,9 @@
-use super::errors::CapsolverApiError;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Deserializer};
-use serde_json::Value;
+//! Response parsing for the Capsolver API.
 
+use super::errors::CapsolverApiError;
+use crate::impl_api_response_deserialize;
+
+/// Capsolver API response wrapper
 #[derive(Debug)]
 pub enum CapsolverResponse<T> {
     Success(T),
@@ -19,29 +20,4 @@ impl<T> CapsolverResponse<T> {
     }
 }
 
-impl<'de, T> Deserialize<'de> for CapsolverResponse<T>
-where
-    T: DeserializeOwned,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let json_value: Value = Deserialize::deserialize(deserializer)?;
-
-        let error_id = json_value
-            .get("errorId")
-            .and_then(Value::as_u64)
-            .unwrap_or(0);
-
-        if error_id != 0 {
-            let api_error: CapsolverApiError =
-                serde_json::from_value(json_value).map_err(serde::de::Error::custom)?;
-            return Ok(CapsolverResponse::Error(api_error));
-        }
-
-        serde_json::from_value::<T>(json_value)
-            .map(CapsolverResponse::Success)
-            .map_err(serde::de::Error::custom)
-    }
-}
+impl_api_response_deserialize!(CapsolverResponse, CapsolverApiError);
