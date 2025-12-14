@@ -5,7 +5,7 @@
 //! Required environment variable:
 //! - `CAPSOLVER_API_KEY` - Your Capsolver API key
 
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
 use std::env;
 use std::time::Duration;
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create provider and service
     let provider = CapsolverProvider::new(api_key)?;
-    let service = CaptchaSolverService::with_provider(provider);
+    let service = CaptchaSolverService::new(provider);
 
     // Create a ReCaptcha V2 task
     // Demo site from https://2captcha.com/demo

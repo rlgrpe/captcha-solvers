@@ -3,7 +3,7 @@
 //! This module provides provider-agnostic Cloudflare captcha task definitions
 //! that can be converted to any supported provider's format.
 
-use crate::proxy::ProxyConfig;
+use crate::utils::proxy::ProxyConfig;
 
 /// Cloudflare Turnstile task with fluent builder pattern.
 ///
@@ -13,7 +13,7 @@ use crate::proxy::ProxyConfig;
 /// # Examples
 ///
 /// ```
-/// use captcha_solvers::tasks::Turnstile;
+/// use captcha_solvers::Turnstile;
 ///
 /// // Simple proxyless task
 /// let task = Turnstile::new("https://example.com", "0x4AAAAAAAB...");
@@ -57,7 +57,7 @@ impl Turnstile {
     /// # Example
     ///
     /// ```
-    /// use captcha_solvers::tasks::Turnstile;
+    /// use captcha_solvers::Turnstile;
     ///
     /// let task = Turnstile::new(
     ///     "https://example.com/login",
@@ -157,7 +157,7 @@ impl Turnstile {
 /// # Examples
 ///
 /// ```
-/// use captcha_solvers::{ProxyConfig, tasks::CloudflareChallenge};
+/// use captcha_solvers::{ProxyConfig, CloudflareChallenge};
 ///
 /// let proxy = ProxyConfig::http("192.168.1.1", 8080);
 ///
@@ -192,7 +192,7 @@ impl CloudflareChallenge {
     /// # Example
     ///
     /// ```
-    /// use captcha_solvers::{ProxyConfig, tasks::CloudflareChallenge};
+    /// use captcha_solvers::{ProxyConfig, CloudflareChallenge};
     ///
     /// let proxy = ProxyConfig::http("proxy.example.com", 8080)
     ///     .with_auth("user", "pass");

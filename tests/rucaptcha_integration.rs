@@ -8,10 +8,10 @@
 
 mod common;
 
-use captcha_solvers::providers::rucaptcha::RucaptchaProvider;
+use captcha_solvers::rucaptcha::RucaptchaProvider;
 use captcha_solvers::{
-    CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ProxyConfig,
-    ReCaptchaV2, ReCaptchaV3, Turnstile,
+    CaptchaSolverService, CaptchaSolverServiceTrait, ProxyConfig, ReCaptchaV2, ReCaptchaV3,
+    Turnstile,
 };
 use std::time::Duration;
 
@@ -39,7 +39,7 @@ const TURNSTILE_URL: &str = "https://visa.vfsglobal.com/uzb/ru/ltu/login";
 
 fn create_service(api_key: String) -> CaptchaSolverService<RucaptchaProvider> {
     let provider = RucaptchaProvider::new(api_key).expect("Failed to create provider");
-    CaptchaSolverService::new(provider, CaptchaSolverServiceConfig::default())
+    CaptchaSolverService::new(provider)
 }
 
 // =============================================================================
@@ -63,7 +63,7 @@ async fn test_rucaptcha_provider_creation() {
 async fn test_rucaptcha_invalid_api_key() {
     let provider =
         RucaptchaProvider::new("invalid_api_key_12345").expect("Failed to create provider");
-    let service = CaptchaSolverService::new(provider, CaptchaSolverServiceConfig::default());
+    let service = CaptchaSolverService::new(provider);
 
     let task = Turnstile::new("https://example.com", "test_key");
     let result = service.solve_captcha(task, Duration::from_secs(30)).await;

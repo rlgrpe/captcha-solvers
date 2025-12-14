@@ -1,7 +1,9 @@
 //! Task and solution types for the RuCaptcha API.
 
-use crate::proxy::RucaptchaProxyFields;
-use crate::serde_helpers::{deserialize_string_or_number, serialize_string_as_number_if_possible};
+use crate::utils::proxy::RucaptchaProxyFields;
+use crate::utils::serde_helpers::{
+    deserialize_string_or_number, serialize_string_as_number_if_possible,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
@@ -190,6 +192,8 @@ pub enum RucaptchaSolution {
     /// Turnstile solution
     Turnstile(TurnstileSolution),
 }
+
+impl crate::solutions::ProviderSolution for RucaptchaSolution {}
 
 impl RucaptchaSolution {
     /// Try to extract ReCaptcha solution (returns reference)
@@ -421,8 +425,8 @@ impl TryFrom<crate::tasks::CaptchaTask> for RucaptchaTask {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proxy::{ProxyConfig, ProxyType};
     use crate::tasks::{CloudflareChallenge, ReCaptchaV2, ReCaptchaV3, Turnstile};
+    use crate::utils::proxy::{ProxyConfig, ProxyType};
 
     #[test]
     fn test_recaptcha_v2_serialization() {

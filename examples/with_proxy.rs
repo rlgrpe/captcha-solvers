@@ -7,7 +7,7 @@
 //! - `PROXY_HOST` - Proxy hostname or IP
 //! - `PROXY_PORT` - Proxy port
 
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ProxyConfig, ReCaptchaV2};
 use std::env;
 use std::time::Duration;
@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()?;
 
     let provider = CapsolverProvider::new(api_key)?;
-    let service = CaptchaSolverService::with_provider(provider);
+    let service = CaptchaSolverService::new(provider);
 
     // Different proxy types available:
     // - ProxyConfig::http(host, port)

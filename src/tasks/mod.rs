@@ -15,7 +15,7 @@
 //! # Usage
 //!
 //! ```
-//! use captcha_solvers::tasks::{ReCaptchaV2, ReCaptchaV3, Turnstile};
+//! use captcha_solvers::{ReCaptchaV2, ReCaptchaV3, Turnstile};
 //!
 //! // ReCaptcha V2 - invisible enterprise with proxy
 //! let task = ReCaptchaV2::new("https://example.com", "site-key")
@@ -37,7 +37,7 @@
 //! The [`CaptchaTask`] enum provides a unified type for all task types:
 //!
 //! ```
-//! use captcha_solvers::tasks::{CaptchaTask, ReCaptchaV2, Turnstile};
+//! use captcha_solvers::{CaptchaTask, ReCaptchaV2, Turnstile};
 //!
 //! // Individual task types convert to CaptchaTask automatically
 //! let task: CaptchaTask = ReCaptchaV2::new("https://example.com", "site-key")
@@ -53,7 +53,7 @@
 //! All task fields are public and can be accessed directly:
 //!
 //! ```
-//! use captcha_solvers::tasks::ReCaptchaV2;
+//! use captcha_solvers::ReCaptchaV2;
 //!
 //! let task = ReCaptchaV2::new("https://example.com", "site-key")
 //!     .invisible()
@@ -86,7 +86,7 @@ use std::fmt;
 /// # Example
 ///
 /// ```
-/// use captcha_solvers::tasks::{CaptchaTask, ReCaptchaV2, Turnstile};
+/// use captcha_solvers::{CaptchaTask, ReCaptchaV2, Turnstile};
 ///
 /// // Create from individual task types
 /// let task: CaptchaTask = ReCaptchaV2::new("https://example.com", "site-key")

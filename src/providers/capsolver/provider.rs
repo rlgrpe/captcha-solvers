@@ -6,9 +6,9 @@ use super::types::{
     CapsolverSolution, CapsolverTask, CreateTaskData, CreateTaskRequest, GetTaskData,
     GetTaskResultRequest,
 };
-use crate::provider::Provider;
+use crate::providers::traits::Provider;
 use crate::tasks::CaptchaTask;
-use crate::types::TaskId;
+use crate::utils::types::TaskId;
 use reqwest::Url;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use secrecy::{ExposeSecret, SecretString};

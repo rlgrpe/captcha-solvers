@@ -5,7 +5,7 @@
 //! Required environment variable:
 //! - `CAPSOLVER_API_KEY` - Your Capsolver API key
 
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, Turnstile};
 use std::env;
 use std::time::Duration;
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key = env::var("CAPSOLVER_API_KEY").expect("CAPSOLVER_API_KEY must be set");
 
     let provider = CapsolverProvider::new(api_key)?;
-    let service = CaptchaSolverService::with_provider(provider);
+    let service = CaptchaSolverService::new(provider);
 
     // Cloudflare Turnstile task
     let task = Turnstile::new(

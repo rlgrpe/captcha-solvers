@@ -9,7 +9,7 @@ use thiserror::Error;
 /// # Example
 ///
 /// ```rust
-/// use captcha_solvers::errors::UnsupportedTaskError;
+/// use captcha_solvers::UnsupportedTaskError;
 ///
 /// let error = UnsupportedTaskError::new("CloudflareChallenge", "RuCaptcha");
 /// assert_eq!(
@@ -61,7 +61,7 @@ impl fmt::Display for UnsupportedTaskError {
 /// # Examples
 ///
 /// ```rust
-/// use captcha_solvers::errors::RetryableError;
+/// use captcha_solvers::RetryableError;
 ///
 /// enum MyError {
 ///     NetworkTimeout,      // Retry same task

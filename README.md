@@ -30,27 +30,27 @@ A generic Rust library for solving captchas through various provider services.
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v.0.1.0" }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.1" }
 ```
 
 To use only specific providers:
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v.0.1.0", default-features = false, features = ["capsolver"] }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.1", default-features = false, features = ["capsolver"] }
 ```
 
 ## Quick Start
 
 ```rust
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
 use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let provider = CapsolverProvider::new("your_api_key")?;
-    let service = CaptchaSolverService::with_provider(provider);
+    let service = CaptchaSolverService::new(provider);
 
     let task = ReCaptchaV2::new("https://example.com", "site_key");
     let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
@@ -67,6 +67,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### ReCaptcha V2
 
 ```rust
+use captcha_solvers::{ReCaptchaV2, ProxyConfig};
+
 // Standard
 let task = ReCaptchaV2::new("https://example.com", "site_key");
 
@@ -84,6 +86,8 @@ let task = ReCaptchaV2::new("https://example.com", "site_key").with_proxy(proxy)
 ### ReCaptcha V3
 
 ```rust
+use captcha_solvers::ReCaptchaV3;
+
 let task = ReCaptchaV3::new("https://example.com", "site_key")
     .with_action("submit")
     .with_min_score(0.9);
@@ -92,6 +96,8 @@ let task = ReCaptchaV3::new("https://example.com", "site_key")
 ### Cloudflare Turnstile
 
 ```rust
+use captcha_solvers::Turnstile;
+
 let task = Turnstile::new("https://example.com", "site_key")
     .with_action("login");
 ```
@@ -99,6 +105,8 @@ let task = Turnstile::new("https://example.com", "site_key")
 ### Cloudflare Challenge
 
 ```rust
+use captcha_solvers::{CloudflareChallenge, ProxyConfig};
+
 // Requires proxy - must use Capsolver
 let proxy = ProxyConfig::http("192.168.1.1", 8080).with_auth("user", "pass");
 let task = CloudflareChallenge::new("https://protected-site.com", proxy);
@@ -115,6 +123,8 @@ if let Some(clearance) = cf_solution.cf_clearance() {
 ### Using Proxy
 
 ```rust
+use captcha_solvers::ProxyConfig;
+
 // HTTP
 let proxy = ProxyConfig::http("host", 8080);
 
@@ -127,7 +137,9 @@ let proxy = ProxyConfig::socks5("host", 1080).with_auth("user", "pass");
 ### Retry Configuration
 
 ```rust
-use captcha_solvers::{RetryConfig, RetryableProvider};
+use captcha_solvers::{RetryConfig, CaptchaRetryableProvider, CaptchaSolverService};
+use captcha_solvers::capsolver::CapsolverProvider;
+use std::time::Duration;
 
 let base_provider = CapsolverProvider::new("api_key")?;
 
@@ -136,8 +148,8 @@ let retry_config = RetryConfig::default()
     .with_min_delay(Duration::from_millis(500))
     .with_max_delay(Duration::from_secs(30));
 
-let provider = RetryableProvider::with_config(base_provider, retry_config);
-let service = CaptchaSolverService::with_provider(provider);
+let provider = CaptchaRetryableProvider::with_config(base_provider, retry_config);
+let service = CaptchaSolverService::new(provider);
 ```
 
 ## Running Examples

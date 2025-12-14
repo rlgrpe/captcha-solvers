@@ -7,6 +7,14 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+/// Marker trait for provider solution types.
+///
+/// All provider-specific solution types (like `CapsolverSolution`, `RucaptchaSolution`)
+/// must implement this trait. It provides a common bound for the service trait.
+///
+/// This trait is automatically implemented for solution types that are `Send + Sync`.
+pub trait ProviderSolution: Send + Sync {}
+
 /// ReCaptcha solution (V2 and V3)
 ///
 /// This solution type is returned when solving ReCaptcha V2 or V3 captchas.

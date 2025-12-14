@@ -91,12 +91,13 @@ macro_rules! impl_api_response_deserialize {
             where
                 D: serde::Deserializer<'de>,
             {
-                let response = $crate::response::deserialize_error_id_response::<D, T, $error_type>(
-                    deserializer,
-                )?;
+                let response =
+                    $crate::utils::response::deserialize_error_id_response::<D, T, $error_type>(
+                        deserializer,
+                    )?;
                 Ok(match response {
-                    $crate::response::ApiResponse::Success(data) => Self::Success(data),
-                    $crate::response::ApiResponse::Error(err) => Self::Error(err),
+                    $crate::utils::response::ApiResponse::Success(data) => Self::Success(data),
+                    $crate::utils::response::ApiResponse::Error(err) => Self::Error(err),
                 })
             }
         }

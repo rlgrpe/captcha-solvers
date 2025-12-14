@@ -30,7 +30,7 @@
 //! use captcha_solvers::{
 //!     ReCaptchaV2, Turnstile, ProxyConfig,
 //!     CaptchaSolverService, CaptchaSolverServiceTrait,
-//!     providers::capsolver::CapsolverProvider,
+//!     capsolver::CapsolverProvider,
 //! };
 //! use std::time::Duration;
 //!
@@ -38,7 +38,7 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create provider with API key
 //!     let provider = CapsolverProvider::new("your_api_key")?;
-//!     let service = CaptchaSolverService::with_provider(provider);
+//!     let service = CaptchaSolverService::new(provider);
 //!
 //!     // Use shared task types with builder pattern
 //!     let task = ReCaptchaV2::new("https://example.com", "site_key")
@@ -92,7 +92,7 @@
 //!
 //! ```rust,ignore
 //! use captcha_solvers::{CloudflareChallenge, ProxyConfig};
-//! use captcha_solvers::providers::capsolver::CapsolverProvider;
+//! use captcha_solvers::capsolver::CapsolverProvider;
 //!
 //! // Cloudflare Challenge requires a static/sticky proxy
 //! let proxy = ProxyConfig::http("192.168.1.1", 8080)
@@ -103,14 +103,14 @@
 //!
 //! // Only supported by Capsolver
 //! let provider = CapsolverProvider::new("api_key")?;
-//! let service = CaptchaSolverService::with_provider(provider);
+//! let service = CaptchaSolverService::new(provider);
 //! let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
 //! ```
 //!
 //! ## Provider Configuration
 //!
 //! ```rust,ignore
-//! use captcha_solvers::providers::capsolver::CapsolverProvider;
+//! use captcha_solvers::capsolver::CapsolverProvider;
 //! use url::Url;
 //!
 //! // Simple: use default URL
@@ -139,7 +139,7 @@
 //! CaptchaSolverService<P>
 //!         │
 //!         ▼
-//! RetryableProvider<P>  (optional retry wrapper)
+//! CaptchaRetryableProvider<P>  (optional retry wrapper)
 //!         │
 //!         ▼
 //!     Provider          (trait: CapsolverProvider, RucaptchaProvider)
@@ -151,29 +151,67 @@
 //! - `rucaptcha` - RuCaptcha provider support
 //! - `tracing` - OpenTelemetry tracing instrumentation (enabled by default)
 
-pub mod errors;
-pub mod provider;
-pub mod providers;
-pub mod proxy;
-pub mod response;
-pub mod retry;
-pub mod serde_helpers;
-pub mod service;
-pub mod solutions;
-pub mod tasks;
-pub mod types;
+// Internal modules (hidden from users)
+mod errors;
+mod providers;
+mod service;
+mod solutions;
+mod tasks;
+pub(crate) mod utils;
 
-// Re-export commonly used types at the crate root
+// ============================================================================
+// Provider Modules (feature-gated, expose provider-specific types)
+// ============================================================================
+
+#[cfg(feature = "capsolver")]
+pub mod capsolver {
+    //! Capsolver provider implementation.
+    //!
+    //! See [`CapsolverProvider`] for usage details.
+    pub use crate::providers::capsolver::*;
+}
+
+#[cfg(feature = "rucaptcha")]
+pub mod rucaptcha {
+    //! RuCaptcha provider implementation.
+    //!
+    //! See [`RucaptchaProvider`] for usage details.
+    pub use crate::providers::rucaptcha::*;
+}
+
+// ============================================================================
+// Public API - Core Types
+// ============================================================================
+
+// Error handling
 pub use errors::{RetryableError, UnsupportedTaskError};
-pub use provider::{Provider, RetryableProvider};
-pub use proxy::{
-    CapsolverProxyFields, ProxyConfig, ProxyType, RucaptchaProxyFields,
-    serialize_capsolver_proxy_type, serialize_rucaptcha_proxy_type,
-};
-pub use retry::RetryConfig;
+
+// Provider abstraction
+pub use providers::{CaptchaRetryableProvider, Provider};
+
+// Service
 pub use service::{
     CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ServiceError,
 };
-pub use solutions::{CloudflareChallengeSolution, ReCaptchaSolution, TurnstileSolution};
+
+// ============================================================================
+// Public API - Task Types
+// ============================================================================
+
 pub use tasks::{CaptchaTask, CloudflareChallenge, ReCaptchaV2, ReCaptchaV3, Turnstile};
-pub use types::TaskId;
+
+// ============================================================================
+// Public API - Solution Types
+// ============================================================================
+
+pub use solutions::{
+    CloudflareChallengeSolution, ProviderSolution, ReCaptchaSolution, TurnstileSolution,
+};
+
+// ============================================================================
+// Public API - Utilities
+// ============================================================================
+
+pub use utils::proxy::{ProxyConfig, ProxyType};
+pub use utils::retry::RetryConfig;
+pub use utils::types::TaskId;

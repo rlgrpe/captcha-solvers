@@ -5,9 +5,10 @@
 //! Required environment variable:
 //! - `CAPSOLVER_API_KEY` - Your Capsolver API key
 
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{
-    CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2, RetryConfig, RetryableProvider,
+    CaptchaRetryableProvider, CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2,
+    RetryConfig,
 };
 use std::env;
 use std::time::Duration;
@@ -27,8 +28,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_factor(2.0);
 
     // Wrap provider with retry logic
-    let provider = RetryableProvider::with_config(base_provider, retry_config);
-    let service = CaptchaSolverService::with_provider(provider);
+    let provider = CaptchaRetryableProvider::with_config(base_provider, retry_config);
+    let service = CaptchaSolverService::new(provider);
 
     let task = ReCaptchaV2::new(
         "https://lessons.zennolab.com/captchas/recaptcha/v2_simple.php?level=high",

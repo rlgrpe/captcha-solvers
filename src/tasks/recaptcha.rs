@@ -3,7 +3,7 @@
 //! This module provides provider-agnostic ReCaptcha task definitions that can be
 //! converted to any supported provider's format using the `Into` trait.
 
-use crate::proxy::ProxyConfig;
+use crate::utils::proxy::ProxyConfig;
 use std::collections::HashMap;
 
 /// ReCaptcha V2 task with fluent builder pattern.
@@ -14,7 +14,7 @@ use std::collections::HashMap;
 /// # Examples
 ///
 /// ```
-/// use captcha_solvers::tasks::ReCaptchaV2;
+/// use captcha_solvers::ReCaptchaV2;
 ///
 /// // Simple proxyless task
 /// let task = ReCaptchaV2::new("https://example.com", "6LeIxAcTAAAA...");
@@ -36,7 +36,7 @@ use std::collections::HashMap;
 /// # Converting to Provider Format
 ///
 /// ```ignore
-/// use captcha_solvers::tasks::ReCaptchaV2;
+/// use captcha_solvers::ReCaptchaV2;
 /// use captcha_solvers::providers::capsolver::CapsolverTask;
 ///
 /// let task = ReCaptchaV2::new("https://example.com", "site-key")
@@ -83,7 +83,7 @@ impl ReCaptchaV2 {
     /// # Example
     ///
     /// ```
-    /// use captcha_solvers::tasks::ReCaptchaV2;
+    /// use captcha_solvers::ReCaptchaV2;
     ///
     /// let task = ReCaptchaV2::new(
     ///     "https://www.google.com/recaptcha/api2/demo",
@@ -216,7 +216,7 @@ impl ReCaptchaV2 {
 /// # Examples
 ///
 /// ```
-/// use captcha_solvers::tasks::ReCaptchaV3;
+/// use captcha_solvers::ReCaptchaV3;
 ///
 /// // Basic task
 /// let task = ReCaptchaV3::new("https://example.com", "6LeIxAcTAAAA...");

@@ -11,7 +11,7 @@
 //! - `PROXY_USER` - Proxy username
 //! - `PROXY_PASSWORD` - Proxy password
 
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{
     CaptchaSolverService, CaptchaSolverServiceTrait, CloudflareChallenge, ProxyConfig,
 };
@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("PROXY_PORT must be a valid port number");
 
     let provider = CapsolverProvider::new(api_key)?;
-    let service = CaptchaSolverService::with_provider(provider);
+    let service = CaptchaSolverService::new(provider);
 
     // Create proxy config (Cloudflare Challenge requires a proxy)
     let mut proxy = ProxyConfig::http(&proxy_host, proxy_port);

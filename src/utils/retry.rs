@@ -6,7 +6,7 @@ use std::time::Duration;
 /// Use the builder pattern to customize retry settings:
 ///
 /// ```rust
-/// use captcha_solvers::retry::RetryConfig;
+/// use captcha_solvers::RetryConfig;
 /// use std::time::Duration;
 ///
 /// let config = RetryConfig::default()
