@@ -10,7 +10,6 @@
 use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ProxyConfig, ReCaptchaV2};
 use std::env;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,9 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         proxy_host, proxy_port
     );
 
-    let solution = service
-        .solve_captcha(task, Duration::from_secs(180))
-        .await?;
+    let solution = service.solve_captcha(task).await?;
 
     let recaptcha = solution.into_recaptcha();
     println!("Solved! Token length: {}", recaptcha.token().len());

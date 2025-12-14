@@ -8,7 +8,6 @@
 use captcha_solvers::rucaptcha::RucaptchaProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
 use std::env;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,9 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Solving ReCaptcha V2 with RuCaptcha...");
 
-    let solution = service
-        .solve_captcha(task, Duration::from_secs(120))
-        .await?;
+    let solution = service.solve_captcha(task).await?;
 
     let recaptcha = solution.into_recaptcha();
     println!("Solved! Token length: {}", recaptcha.token().len());

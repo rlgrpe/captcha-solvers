@@ -16,7 +16,6 @@ use captcha_solvers::{
     CaptchaSolverService, CaptchaSolverServiceTrait, CloudflareChallenge, ProxyConfig,
 };
 use std::env;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,9 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Solving Cloudflare Challenge (this may take a few minutes)...");
 
-    let solution = service
-        .solve_captcha(task, Duration::from_secs(180))
-        .await?;
+    let solution = service.solve_captcha(task).await?;
 
     let cf_solution = solution.into_cloudflare_challenge();
     println!("Solved!");

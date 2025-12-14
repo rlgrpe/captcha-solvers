@@ -46,13 +46,31 @@ pub enum ServiceError {
 
     /// Timeout waiting for captcha solution.
     #[error(
-        "Timeout waiting for captcha solution after {:.1}s; Task id: {task_id}",
+        "Timeout waiting for captcha solution after {:.1}s (polls: {poll_count}); Task id: {task_id}",
         timeout.as_secs_f64()
     )]
     SolutionTimeout {
         /// The timeout duration that was exceeded.
         timeout: Duration,
+        /// The elapsed time before timeout.
+        elapsed: Duration,
+        /// Number of poll attempts made.
+        poll_count: u32,
         /// The task ID that timed out.
+        task_id: TaskId,
+    },
+
+    /// Operation was cancelled by user.
+    #[error(
+        "Captcha solve cancelled after {:.1}s (polls: {poll_count}); Task id: {task_id}",
+        elapsed.as_secs_f64()
+    )]
+    Cancelled {
+        /// The elapsed time when cancelled.
+        elapsed: Duration,
+        /// Number of poll attempts made before cancellation.
+        poll_count: u32,
+        /// The task ID that was cancelled.
         task_id: TaskId,
     },
 }
@@ -76,8 +94,59 @@ impl ServiceError {
     }
 
     /// Create a solution timeout error.
-    pub fn timeout(timeout: Duration, task_id: TaskId) -> Self {
-        Self::SolutionTimeout { timeout, task_id }
+    pub fn timeout(timeout: Duration, elapsed: Duration, poll_count: u32, task_id: TaskId) -> Self {
+        Self::SolutionTimeout {
+            timeout,
+            elapsed,
+            poll_count,
+            task_id,
+        }
+    }
+
+    /// Create a cancellation error.
+    pub fn cancelled(elapsed: Duration, poll_count: u32, task_id: TaskId) -> Self {
+        Self::Cancelled {
+            elapsed,
+            poll_count,
+            task_id,
+        }
+    }
+
+    /// Returns `true` if this error is a cancellation.
+    pub fn is_cancelled(&self) -> bool {
+        matches!(self, ServiceError::Cancelled { .. })
+    }
+
+    /// Returns `true` if this error is a timeout.
+    pub fn is_timeout(&self) -> bool {
+        matches!(self, ServiceError::SolutionTimeout { .. })
+    }
+
+    /// Get the task ID associated with this error, if any.
+    pub fn task_id(&self) -> Option<&TaskId> {
+        match self {
+            ServiceError::SolutionTimeout { task_id, .. } => Some(task_id),
+            ServiceError::Cancelled { task_id, .. } => Some(task_id),
+            ServiceError::Provider { .. } => None,
+        }
+    }
+
+    /// Get the elapsed time when the error occurred, if available.
+    pub fn elapsed(&self) -> Option<Duration> {
+        match self {
+            ServiceError::SolutionTimeout { elapsed, .. } => Some(*elapsed),
+            ServiceError::Cancelled { elapsed, .. } => Some(*elapsed),
+            ServiceError::Provider { .. } => None,
+        }
+    }
+
+    /// Get the poll count when the error occurred, if available.
+    pub fn poll_count(&self) -> Option<u32> {
+        match self {
+            ServiceError::SolutionTimeout { poll_count, .. } => Some(*poll_count),
+            ServiceError::Cancelled { poll_count, .. } => Some(*poll_count),
+            ServiceError::Provider { .. } => None,
+        }
     }
 }
 
@@ -87,6 +156,8 @@ impl RetryableError for ServiceError {
             ServiceError::Provider { is_retryable, .. } => *is_retryable,
             // Can't retry the same task after timeout - it's expired
             ServiceError::SolutionTimeout { .. } => false,
+            // Can't retry after cancellation
+            ServiceError::Cancelled { .. } => false,
         }
     }
 
@@ -98,6 +169,8 @@ impl RetryableError for ServiceError {
             } => *should_retry_operation,
             // A fresh task attempt might succeed after timeout
             ServiceError::SolutionTimeout { .. } => true,
+            // User cancelled - don't automatically retry
+            ServiceError::Cancelled { .. } => false,
         }
     }
 }

@@ -8,7 +8,6 @@
 use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
 use std::env;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -29,9 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Solving ReCaptcha V2...");
 
     // Solve with 2 minute timeout
-    let solution = service
-        .solve_captcha(task, Duration::from_secs(120))
-        .await?;
+    let solution = service.solve_captcha(task).await?;
 
     // Extract the token
     let recaptcha = solution.into_recaptcha();

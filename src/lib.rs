@@ -32,7 +32,6 @@
 //!     CaptchaSolverService, CaptchaSolverServiceTrait,
 //!     capsolver::CapsolverProvider,
 //! };
-//! use std::time::Duration;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,13 +44,65 @@
 //!         .invisible()
 //!         .enterprise();
 //!
-//!     // Solve the captcha
-//!     let solution = service
-//!         .solve_captcha(task, Duration::from_secs(120))
-//!         .await?;
+//!     // Solve the captcha (uses default timeout from config)
+//!     let solution = service.solve_captcha(task).await?;
 //!     println!("Token: {}", solution.into_recaptcha().token());
 //!
 //!     Ok(())
+//! }
+//! ```
+//!
+//! ## Service Configuration
+//!
+//! Configure timeout and polling behavior using presets or custom values:
+//!
+//! ```rust,ignore
+//! use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceConfig};
+//! use std::time::Duration;
+//!
+//! // Using presets
+//! let service = CaptchaSolverService::with_config(
+//!     provider,
+//!     CaptchaSolverServiceConfig::fast(),  // 60s timeout, 2s poll
+//! );
+//!
+//! // Using builder pattern
+//! let service = CaptchaSolverService::builder(provider)
+//!     .timeout(Duration::from_secs(180))
+//!     .poll_interval(Duration::from_secs(5))
+//!     .build();
+//! ```
+//!
+//! ### Available Presets
+//!
+//! | Preset | Timeout | Poll Interval | Use Case |
+//! |--------|---------|---------------|----------|
+//! | `fast()` | 60s | 2s | Development/testing |
+//! | `balanced()` | 120s | 3s | Most production use (default) |
+//! | `patient()` | 300s | 5s | Slow providers, complex captchas |
+//!
+//! ## Cancellation Support
+//!
+//! Long-running solve operations can be cancelled:
+//!
+//! ```rust,ignore
+//! use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
+//! use tokio_util::sync::CancellationToken;
+//!
+//! let cancel_token = CancellationToken::new();
+//! let token_clone = cancel_token.clone();
+//!
+//! // Cancel after 30 seconds
+//! tokio::spawn(async move {
+//!     tokio::time::sleep(Duration::from_secs(30)).await;
+//!     token_clone.cancel();
+//! });
+//!
+//! let task = ReCaptchaV2::new("https://example.com", "site_key");
+//! match service.solve_captcha_cancellable(task, cancel_token).await {
+//!     Ok(solution) => println!("Got solution"),
+//!     Err(e) if e.is_cancelled() => println!("Operation was cancelled"),
+//!     Err(e) => println!("Error: {}", e),
 //! }
 //! ```
 //!
@@ -88,6 +139,30 @@
 //!     .with_proxy(proxy);
 //! ```
 //!
+//! ## Retry Support
+//!
+//! Wrap providers with automatic retry logic:
+//!
+//! ```rust,ignore
+//! use captcha_solvers::{CaptchaRetryableProvider, RetryConfig};
+//!
+//! let provider = CapsolverProvider::new("api_key")?;
+//!
+//! // With default retry config
+//! let retryable = CaptchaRetryableProvider::new(provider.clone());
+//!
+//! // With custom config and retry callback
+//! let retryable = CaptchaRetryableProvider::with_config(
+//!     provider,
+//!     RetryConfig::default().with_max_retries(5),
+//! )
+//! .with_on_retry(|error, duration| {
+//!     println!("Retrying after {:?} due to: {}", duration, error);
+//! });
+//!
+//! let service = CaptchaSolverService::new(retryable);
+//! ```
+//!
 //! ## Cloudflare Challenge (Capsolver only)
 //!
 //! ```rust,ignore
@@ -104,7 +179,7 @@
 //! // Only supported by Capsolver
 //! let provider = CapsolverProvider::new("api_key")?;
 //! let service = CaptchaSolverService::new(provider);
-//! let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
+//! let solution = service.solve_captcha(task).await?;
 //! ```
 //!
 //! ## Provider Configuration
@@ -150,6 +225,7 @@
 //! - `capsolver` - Capsolver provider support (enabled by default)
 //! - `rucaptcha` - RuCaptcha provider support
 //! - `tracing` - OpenTelemetry tracing instrumentation (enabled by default)
+//! - `metrics` - OpenTelemetry metrics support
 
 // Internal modules (hidden from users)
 mod errors;
@@ -187,12 +263,17 @@ pub mod rucaptcha {
 pub use errors::{RetryableError, UnsupportedTaskError};
 
 // Provider abstraction
-pub use providers::{CaptchaRetryableProvider, Provider};
+pub use providers::{CaptchaRetryableProvider, OnRetryCallback, Provider};
 
 // Service
 pub use service::{
-    CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ServiceError,
+    CaptchaSolverService, CaptchaSolverServiceBuilder, CaptchaSolverServiceConfig,
+    CaptchaSolverServiceConfigBuilder, CaptchaSolverServiceTrait, ConfigError, MIN_POLL_INTERVAL,
+    MIN_TIMEOUT, ServiceError,
 };
+
+// Re-export CancellationToken for convenience
+pub use tokio_util::sync::CancellationToken;
 
 // ============================================================================
 // Public API - Task Types

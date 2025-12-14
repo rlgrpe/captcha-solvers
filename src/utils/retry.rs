@@ -82,6 +82,7 @@ impl RetryConfig {
 /// - Max retries: 3
 ///
 /// For custom retry settings, use [`RetryConfig`] instead.
+#[allow(dead_code)]
 pub fn default_retry_strategy() -> ExponentialBuilder {
     ExponentialBuilder::default()
         .with_min_delay(Duration::from_secs(1))

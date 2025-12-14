@@ -8,7 +8,6 @@
 use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, Turnstile};
 use std::env;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,9 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Solving Cloudflare Turnstile...");
 
-    let solution = service
-        .solve_captcha(task, Duration::from_secs(120))
-        .await?;
+    let solution = service.solve_captcha(task).await?;
 
     let turnstile = solution.into_turnstile();
     println!("Solved! Token: {}...", &turnstile.token()[..50]);

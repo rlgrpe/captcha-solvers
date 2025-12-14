@@ -21,6 +21,7 @@ pub enum ApiResponse<T, E> {
     Error(E),
 }
 
+#[allow(dead_code)]
 impl<T, E> ApiResponse<T, E> {
     /// Convert to Result for convenient use with ?
     pub fn into_result(self) -> Result<T, E> {

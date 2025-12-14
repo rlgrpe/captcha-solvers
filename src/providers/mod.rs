@@ -5,7 +5,7 @@
 mod retryable;
 pub(crate) mod traits;
 
-pub use retryable::CaptchaRetryableProvider;
+pub use retryable::{CaptchaRetryableProvider, OnRetryCallback};
 pub use traits::Provider;
 
 #[cfg(feature = "capsolver")]

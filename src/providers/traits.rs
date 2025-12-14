@@ -1,5 +1,7 @@
 //! Core provider trait definition.
 
+#![allow(async_fn_in_trait)]
+
 use crate::errors::RetryableError;
 use crate::solutions::ProviderSolution;
 use crate::tasks::CaptchaTask;

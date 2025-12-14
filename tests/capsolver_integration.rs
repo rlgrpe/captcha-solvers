@@ -13,7 +13,6 @@ use captcha_solvers::{
     CaptchaSolverService, CaptchaSolverServiceTrait, CloudflareChallenge, ProxyConfig, ReCaptchaV2,
     ReCaptchaV3, Turnstile,
 };
-use std::time::Duration;
 
 // =============================================================================
 // Demo Site Keys from https://2captcha.com/demo
@@ -66,7 +65,7 @@ async fn test_capsolver_invalid_api_key() {
     let service = CaptchaSolverService::new(provider);
 
     let task = Turnstile::new("https://example.com", "test_key");
-    let result = service.solve_captcha(task, Duration::from_secs(30)).await;
+    let result = service.solve_captcha(task).await;
     assert!(result.is_err());
     println!("Got expected error for invalid API key: {:?}", result.err());
 }
@@ -86,7 +85,7 @@ async fn test_capsolver_recaptcha_v2() {
     let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY);
 
     println!("Solving ReCaptcha V2...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -113,7 +112,7 @@ async fn test_capsolver_recaptcha_v2_invisible() {
     let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY).invisible();
 
     println!("Solving ReCaptcha V2 Invisible...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -140,7 +139,7 @@ async fn test_capsolver_recaptcha_v2_enterprise() {
     let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY).enterprise();
 
     println!("Solving ReCaptcha V2 Enterprise...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -180,7 +179,7 @@ async fn test_capsolver_recaptcha_v2_enterprise_with_proxy() {
         .with_proxy(proxy);
 
     println!("Solving ReCaptcha V2 Enterprise with proxy...");
-    let result = service.solve_captcha(task, Duration::from_secs(180)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -211,7 +210,7 @@ async fn test_capsolver_recaptcha_v3() {
     let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY);
 
     println!("Solving ReCaptcha V3...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -242,7 +241,7 @@ async fn test_capsolver_recaptcha_v3_with_action() {
         "Solving ReCaptcha V3 with action '{}'...",
         RECAPTCHA_V3_ACTION
     );
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -280,7 +279,7 @@ async fn test_capsolver_recaptcha_v3_with_proxy() {
     let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY).with_proxy(proxy);
 
     println!("Solving ReCaptcha V3 with proxy...");
-    let result = service.solve_captcha(task, Duration::from_secs(180)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -307,7 +306,7 @@ async fn test_capsolver_recaptcha_v3_enterprise() {
     let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY).enterprise();
 
     println!("Solving ReCaptcha V3 Enterprise...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -338,7 +337,7 @@ async fn test_capsolver_turnstile() {
     let task = Turnstile::new(TURNSTILE_URL, TURNSTILE_SITEKEY);
 
     println!("Solving Cloudflare Turnstile...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -380,7 +379,7 @@ async fn test_capsolver_cloudflare_challenge() {
     let task = CloudflareChallenge::new("https://www.moneysupermarket.com", proxy);
 
     println!("Solving Cloudflare Challenge...");
-    let result = service.solve_captcha(task, Duration::from_secs(180)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
