@@ -5,10 +5,9 @@
 //! Required environment variable:
 //! - `CAPSOLVER_API_KEY` - Your Capsolver API key
 
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
 use std::env;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create provider and service
     let provider = CapsolverProvider::new(api_key)?;
-    let service = CaptchaSolverService::with_provider(provider);
+    let service = CaptchaSolverService::new(provider);
 
     // Create a ReCaptcha V2 task
     // Demo site from https://2captcha.com/demo
@@ -29,9 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Solving ReCaptcha V2...");
 
     // Solve with 2 minute timeout
-    let solution = service
-        .solve_captcha(task, Duration::from_secs(120))
-        .await?;
+    let solution = service.solve_captcha(task).await?;
 
     // Extract the token
     let recaptcha = solution.into_recaptcha();

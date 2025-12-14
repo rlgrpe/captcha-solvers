@@ -100,4 +100,4 @@ pub use types::{
 };
 
 // Re-export proxy types for convenience (also available at crate root)
-pub use crate::proxy::{ProxyConfig, ProxyType};
+pub use crate::utils::proxy::{ProxyConfig, ProxyType};

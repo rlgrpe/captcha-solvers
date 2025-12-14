@@ -8,12 +8,11 @@
 
 mod common;
 
-use captcha_solvers::providers::rucaptcha::RucaptchaProvider;
+use captcha_solvers::rucaptcha::RucaptchaProvider;
 use captcha_solvers::{
-    CaptchaSolverService, CaptchaSolverServiceConfig, CaptchaSolverServiceTrait, ProxyConfig,
-    ReCaptchaV2, ReCaptchaV3, Turnstile,
+    CaptchaSolverService, CaptchaSolverServiceTrait, ProxyConfig, ReCaptchaV2, ReCaptchaV3,
+    Turnstile,
 };
-use std::time::Duration;
 
 // =============================================================================
 // Demo Site Keys from https://2captcha.com/demo
@@ -39,7 +38,7 @@ const TURNSTILE_URL: &str = "https://visa.vfsglobal.com/uzb/ru/ltu/login";
 
 fn create_service(api_key: String) -> CaptchaSolverService<RucaptchaProvider> {
     let provider = RucaptchaProvider::new(api_key).expect("Failed to create provider");
-    CaptchaSolverService::new(provider, CaptchaSolverServiceConfig::default())
+    CaptchaSolverService::new(provider)
 }
 
 // =============================================================================
@@ -63,10 +62,10 @@ async fn test_rucaptcha_provider_creation() {
 async fn test_rucaptcha_invalid_api_key() {
     let provider =
         RucaptchaProvider::new("invalid_api_key_12345").expect("Failed to create provider");
-    let service = CaptchaSolverService::new(provider, CaptchaSolverServiceConfig::default());
+    let service = CaptchaSolverService::new(provider);
 
     let task = Turnstile::new("https://example.com", "test_key");
-    let result = service.solve_captcha(task, Duration::from_secs(30)).await;
+    let result = service.solve_captcha(task).await;
     assert!(result.is_err());
     println!("Got expected error for invalid API key: {:?}", result.err());
 }
@@ -86,7 +85,7 @@ async fn test_rucaptcha_recaptcha_v2() {
     let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY);
 
     println!("Solving ReCaptcha V2...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -113,7 +112,7 @@ async fn test_rucaptcha_recaptcha_v2_invisible() {
     let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY).invisible();
 
     println!("Solving ReCaptcha V2 Invisible...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -140,7 +139,7 @@ async fn test_rucaptcha_recaptcha_v2_enterprise() {
     let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY).enterprise();
 
     println!("Solving ReCaptcha V2 Enterprise...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -178,7 +177,7 @@ async fn test_rucaptcha_recaptcha_v2_with_proxy() {
     let task = ReCaptchaV2::new(RECAPTCHA_V2_URL, RECAPTCHA_V2_SITEKEY).with_proxy(proxy);
 
     println!("Solving ReCaptcha V2 with proxy...");
-    let result = service.solve_captcha(task, Duration::from_secs(180)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -209,7 +208,7 @@ async fn test_rucaptcha_recaptcha_v3() {
     let task = ReCaptchaV3::new(RECAPTCHA_V3_URL, RECAPTCHA_V3_SITEKEY).with_min_score(0.9);
 
     println!("Solving ReCaptcha V3...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -241,7 +240,7 @@ async fn test_rucaptcha_recaptcha_v3_with_action() {
         "Solving ReCaptcha V3 with action '{}'...",
         RECAPTCHA_V3_ACTION
     );
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -270,7 +269,7 @@ async fn test_rucaptcha_recaptcha_v3_enterprise() {
         .with_min_score(0.9);
 
     println!("Solving ReCaptcha V3 Enterprise...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -301,7 +300,7 @@ async fn test_rucaptcha_turnstile() {
     let task = Turnstile::new(TURNSTILE_URL, TURNSTILE_SITEKEY);
 
     println!("Solving Cloudflare Turnstile...");
-    let result = service.solve_captcha(task, Duration::from_secs(120)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {
@@ -339,7 +338,7 @@ async fn test_rucaptcha_turnstile_with_proxy() {
     let task = Turnstile::new(TURNSTILE_URL, TURNSTILE_SITEKEY).with_proxy(proxy);
 
     println!("Solving Cloudflare Turnstile with proxy...");
-    let result = service.solve_captcha(task, Duration::from_secs(180)).await;
+    let result = service.solve_captcha(task).await;
 
     match result {
         Ok(solution) => {

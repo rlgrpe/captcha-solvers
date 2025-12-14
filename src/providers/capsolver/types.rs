@@ -1,4 +1,4 @@
-use crate::proxy::CapsolverProxyFields;
+use crate::utils::proxy::CapsolverProxyFields;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -204,6 +204,8 @@ pub enum CapsolverSolution {
     /// Turnstile or Cloudflare Challenge solution
     Turnstile(TurnstileSolution),
 }
+
+impl crate::solutions::ProviderSolution for CapsolverSolution {}
 
 impl CapsolverSolution {
     /// Try to extract ReCaptcha solution (returns reference)
@@ -443,8 +445,8 @@ impl From<crate::tasks::CaptchaTask> for CapsolverTask {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proxy::ProxyConfig;
     use crate::tasks::{CloudflareChallenge, ReCaptchaV2, ReCaptchaV3, Turnstile};
+    use crate::utils::proxy::ProxyConfig;
 
     #[test]
     fn test_recaptcha_v2_serialization() {

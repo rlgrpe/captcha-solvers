@@ -6,11 +6,13 @@
 use serde::{Deserialize, Deserializer, Serializer};
 
 /// Skip serializing if the value is false
+#[allow(dead_code)]
 pub fn skip_if_false(value: &bool) -> bool {
     !*value
 }
 
 /// Skip serializing if the Option is None
+#[allow(dead_code)]
 pub fn skip_if_none<T>(value: &Option<T>) -> bool {
     value.is_none()
 }
@@ -52,6 +54,7 @@ where
 }
 
 /// Module for optional boolean serialization
+#[allow(dead_code)]
 pub mod optional_bool {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

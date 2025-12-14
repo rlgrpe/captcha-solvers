@@ -1,7 +1,7 @@
 //! Error types for the RuCaptcha provider.
 
 use crate::errors::{RetryableError, UnsupportedTaskError};
-use crate::types::TaskId;
+use crate::utils::types::TaskId;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::time::Duration;

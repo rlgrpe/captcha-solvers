@@ -5,17 +5,16 @@
 //! Required environment variable:
 //! - `CAPSOLVER_API_KEY` - Your Capsolver API key
 
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, Turnstile};
 use std::env;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key = env::var("CAPSOLVER_API_KEY").expect("CAPSOLVER_API_KEY must be set");
 
     let provider = CapsolverProvider::new(api_key)?;
-    let service = CaptchaSolverService::with_provider(provider);
+    let service = CaptchaSolverService::new(provider);
 
     // Cloudflare Turnstile task
     let task = Turnstile::new(
@@ -25,9 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Solving Cloudflare Turnstile...");
 
-    let solution = service
-        .solve_captcha(task, Duration::from_secs(120))
-        .await?;
+    let solution = service.solve_captcha(task).await?;
 
     let turnstile = solution.into_turnstile();
     println!("Solved! Token: {}...", &turnstile.token()[..50]);

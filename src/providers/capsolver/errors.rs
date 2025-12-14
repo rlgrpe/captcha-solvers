@@ -1,5 +1,5 @@
 use crate::errors::RetryableError;
-use crate::types::TaskId;
+use crate::utils::types::TaskId;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use std::time::Duration;

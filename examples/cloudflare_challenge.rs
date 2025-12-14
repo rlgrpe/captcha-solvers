@@ -11,12 +11,11 @@
 //! - `PROXY_USER` - Proxy username
 //! - `PROXY_PASSWORD` - Proxy password
 
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{
     CaptchaSolverService, CaptchaSolverServiceTrait, CloudflareChallenge, ProxyConfig,
 };
 use std::env;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("PROXY_PORT must be a valid port number");
 
     let provider = CapsolverProvider::new(api_key)?;
-    let service = CaptchaSolverService::with_provider(provider);
+    let service = CaptchaSolverService::new(provider);
 
     // Create proxy config (Cloudflare Challenge requires a proxy)
     let mut proxy = ProxyConfig::http(&proxy_host, proxy_port);
@@ -45,9 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Solving Cloudflare Challenge (this may take a few minutes)...");
 
-    let solution = service
-        .solve_captcha(task, Duration::from_secs(180))
-        .await?;
+    let solution = service.solve_captcha(task).await?;
 
     let cf_solution = solution.into_cloudflare_challenge();
     println!("Solved!");

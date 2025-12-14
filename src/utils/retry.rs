@@ -6,7 +6,7 @@ use std::time::Duration;
 /// Use the builder pattern to customize retry settings:
 ///
 /// ```rust
-/// use captcha_solvers::retry::RetryConfig;
+/// use captcha_solvers::RetryConfig;
 /// use std::time::Duration;
 ///
 /// let config = RetryConfig::default()
@@ -82,6 +82,7 @@ impl RetryConfig {
 /// - Max retries: 3
 ///
 /// For custom retry settings, use [`RetryConfig`] instead.
+#[allow(dead_code)]
 pub fn default_retry_strategy() -> ExponentialBuilder {
     ExponentialBuilder::default()
         .with_min_delay(Duration::from_secs(1))

@@ -5,9 +5,10 @@
 //! Required environment variable:
 //! - `CAPSOLVER_API_KEY` - Your Capsolver API key
 
-use captcha_solvers::providers::capsolver::CapsolverProvider;
+use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{
-    CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2, RetryConfig, RetryableProvider,
+    CaptchaRetryableProvider, CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2,
+    RetryConfig,
 };
 use std::env;
 use std::time::Duration;
@@ -26,9 +27,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_delay(Duration::from_secs(30))
         .with_factor(2.0);
 
-    // Wrap provider with retry logic
-    let provider = RetryableProvider::with_config(base_provider, retry_config);
-    let service = CaptchaSolverService::with_provider(provider);
+    // Wrap provider with retry logic and add a callback for retry notifications
+    let provider = CaptchaRetryableProvider::with_config(base_provider, retry_config)
+        .with_on_retry(|error, duration| {
+            eprintln!(
+                "Retry triggered: will retry after {:?} due to error: {}",
+                duration, error
+            );
+        });
+
+    let service = CaptchaSolverService::new(provider);
 
     let task = ReCaptchaV2::new(
         "https://lessons.zennolab.com/captchas/recaptcha/v2_simple.php?level=high",
@@ -37,9 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Solving with automatic retry on transient failures...");
 
-    let solution = service
-        .solve_captcha(task, Duration::from_secs(120))
-        .await?;
+    let solution = service.solve_captcha(task).await?;
 
     let recaptcha = solution.into_recaptcha();
     println!("Solved! Token length: {}", recaptcha.token().len());
