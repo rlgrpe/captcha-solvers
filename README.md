@@ -38,21 +38,21 @@ A generic Rust library for solving captchas through various provider services.
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.1" }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.2" }
 ```
 
 To use only specific providers:
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.1", default-features = false, features = ["capsolver"] }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.2", default-features = false, features = ["capsolver"] }
 ```
 
 With metrics support:
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.1", features = ["metrics"] }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.2", features = ["metrics"] }
 ```
 
 ## Quick Start
