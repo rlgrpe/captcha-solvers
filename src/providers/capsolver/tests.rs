@@ -105,8 +105,11 @@ async fn test_create_task_success() {
     let provider = mock_provider(&server);
     let task = Turnstile::new("https://example.com", "test_key");
 
-    let task_id = provider.create_task(task.into()).await.unwrap();
-    assert_eq!(task_id.as_ref(), "37223a89-06ed-442c-a0b8-22067b79c5b4");
+    let outcome = provider.create_task(task.into()).await.unwrap();
+    assert_eq!(
+        outcome.task_id().as_ref(),
+        "37223a89-06ed-442c-a0b8-22067b79c5b4"
+    );
 }
 
 #[tokio::test]

@@ -34,8 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match service.solve_captcha(task).await {
         Ok(solution) => {
-            let text = solution.into_image_to_text().text();
-            println!("Recognized text: {}", text);
+            let image_solution = solution.into_image_to_text();
+            println!("Recognized text: {}", image_solution.text());
         }
         Err(e) => {
             eprintln!("Error solving captcha: {}", e);

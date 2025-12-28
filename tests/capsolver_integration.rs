@@ -411,7 +411,7 @@ async fn test_capsolver_image_to_text() {
 
     // Load captcha image from tests folder
     let image_bytes = std::fs::read("tests/captcha.png").expect("Failed to read tests/captcha.png");
-    let task = ImageToText::from_bytes(image_bytes).with_module("module_005");
+    let task = ImageToText::from_bytes(image_bytes);
 
     println!("Solving Image to Text captcha...");
     let result = service.solve_captcha(task).await;

@@ -6,7 +6,7 @@ use super::types::{
     CreateTaskData, CreateTaskRequest, GetTaskData, GetTaskResultRequest, RucaptchaSolution,
     RucaptchaTask,
 };
-use crate::providers::traits::Provider;
+use crate::providers::traits::{Provider, TaskCreationOutcome};
 use crate::tasks::CaptchaTask;
 use crate::utils::types::TaskId;
 use reqwest::Url;
@@ -277,12 +277,14 @@ impl Provider for RucaptchaProvider {
         feature = "tracing",
         tracing::instrument(name = "RucaptchaProvider::create_task", skip_all)
     )]
-    async fn create_task(&self, task: CaptchaTask) -> Result<TaskId> {
+    async fn create_task(&self, task: CaptchaTask) -> Result<TaskCreationOutcome<Self::Solution>> {
         // Convert unified task to provider-specific format
         // CloudflareChallenge is not supported by RuCaptcha
         let internal_task: RucaptchaTask =
             task.try_into().map_err(RucaptchaError::UnsupportedTask)?;
-        self.create_task_internal(internal_task).await
+        let task_id = self.create_task_internal(internal_task).await?;
+        // RuCaptcha always requires polling - no immediate solutions
+        Ok(TaskCreationOutcome::Pending(task_id))
     }
 
     #[cfg_attr(

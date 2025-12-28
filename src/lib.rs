@@ -264,7 +264,7 @@ pub mod rucaptcha {
 pub use errors::{RetryableError, UnsupportedTaskError};
 
 // Provider abstraction
-pub use providers::{CaptchaRetryableProvider, OnRetryCallback, Provider};
+pub use providers::{CaptchaRetryableProvider, OnRetryCallback, Provider, TaskCreationOutcome};
 
 // Service
 pub use service::{

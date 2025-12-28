@@ -333,10 +333,16 @@ impl CapsolverSolution {
 // ============================================================================
 
 /// Response data from Capsolver createTask endpoint (success case)
+///
+/// Some task types (like ImageToText) return the solution immediately
+/// in the createTask response without requiring a separate getTaskResult call.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CreateTaskData {
     pub task_id: String,
+    /// Solution returned immediately (for synchronous tasks like ImageToText)
+    #[serde(default)]
+    pub solution: Option<CapsolverSolution>,
 }
 
 /// Response data from Capsolver getTaskResult endpoint (success case)

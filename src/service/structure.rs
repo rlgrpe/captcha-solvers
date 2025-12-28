@@ -4,7 +4,7 @@ use super::config::{CaptchaSolverServiceConfig, CaptchaSolverServiceConfigBuilde
 use super::errors::ServiceError;
 use super::traits::CaptchaSolverServiceTrait;
 use crate::errors::RetryableError;
-use crate::providers::traits::Provider;
+use crate::providers::traits::{Provider, TaskCreationOutcome};
 use crate::tasks::CaptchaTask;
 use std::fmt::{Debug, Display};
 use std::time::Instant;
@@ -293,8 +293,10 @@ where
             "Creating captcha task"
         );
 
+        let start = Instant::now();
+
         // Create the task
-        let task_id = self.provider.create_task(task).await.map_err(|e| {
+        let outcome = self.provider.create_task(task).await.map_err(|e| {
             #[cfg(feature = "metrics")]
             ServiceMetrics::global().errors.add(
                 1,
@@ -306,6 +308,53 @@ where
             ServiceError::from_provider(e)
         })?;
 
+        #[cfg(feature = "metrics")]
+        ServiceMetrics::global()
+            .tasks_created
+            .add(1, &[KeyValue::new("task_type", task_type.clone())]);
+
+        // Handle immediate solution (e.g., ImageToText on Capsolver)
+        let task_id = match outcome {
+            TaskCreationOutcome::Ready { task_id, solution } => {
+                let elapsed = start.elapsed();
+
+                #[cfg(feature = "tracing")]
+                {
+                    Span::current().record("captcha.task_id", task_id.as_ref());
+                    info!(
+                        task_id = %task_id,
+                        task_type = %task_type,
+                        elapsed_secs = %elapsed.as_secs_f64(),
+                        "Captcha solved immediately (no polling required)"
+                    );
+                }
+
+                #[cfg(feature = "metrics")]
+                {
+                    ServiceMetrics::global()
+                        .solutions_received
+                        .add(1, &[KeyValue::new("task_type", task_type.clone())]);
+                    ServiceMetrics::global().solve_time.record(
+                        elapsed.as_secs_f64(),
+                        &[
+                            KeyValue::new("task_type", task_type.clone()),
+                            KeyValue::new("outcome", "immediate"),
+                        ],
+                    );
+                    ServiceMetrics::global().poll_counts.record(
+                        0,
+                        &[
+                            KeyValue::new("task_type", task_type.clone()),
+                            KeyValue::new("outcome", "immediate"),
+                        ],
+                    );
+                }
+
+                return Ok(solution);
+            }
+            TaskCreationOutcome::Pending(task_id) => task_id,
+        };
+
         #[cfg(feature = "tracing")]
         {
             Span::current().record("captcha.task_id", task_id.as_ref());
@@ -315,11 +364,6 @@ where
                 "Captcha task created, polling for solution"
             );
         }
-
-        #[cfg(feature = "metrics")]
-        ServiceMetrics::global()
-            .tasks_created
-            .add(1, &[KeyValue::new("task_type", task_type.clone())]);
 
         // Poll for solution with timeout
         let timeout = self.config.timeout;

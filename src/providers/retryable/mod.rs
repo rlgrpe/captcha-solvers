@@ -4,7 +4,7 @@
 //! retry logic with exponential backoff to any provider.
 
 use crate::errors::RetryableError;
-use crate::providers::traits::Provider;
+use crate::providers::traits::{Provider, TaskCreationOutcome};
 use crate::tasks::CaptchaTask;
 use crate::utils::retry::RetryConfig;
 use crate::utils::types::TaskId;
@@ -163,7 +163,10 @@ where
             fields(captcha.task_type)
         )
     )]
-    async fn create_task(&self, task: CaptchaTask) -> Result<TaskId, Self::Error> {
+    async fn create_task(
+        &self,
+        task: CaptchaTask,
+    ) -> Result<TaskCreationOutcome<Self::Solution>, Self::Error> {
         #[cfg(feature = "tracing")]
         tracing::Span::current().record("captcha.task_type", task.to_string());
 
