@@ -10,8 +10,8 @@ mod common;
 
 use captcha_solvers::rucaptcha::RucaptchaProvider;
 use captcha_solvers::{
-    CaptchaSolverService, CaptchaSolverServiceTrait, ProxyConfig, ReCaptchaV2, ReCaptchaV3,
-    Turnstile,
+    CaptchaSolverService, CaptchaSolverServiceTrait, ImageToText, ProxyConfig, ReCaptchaV2,
+    ReCaptchaV3, Turnstile,
 };
 
 // =============================================================================
@@ -355,8 +355,101 @@ async fn test_rucaptcha_turnstile_with_proxy() {
 }
 
 // =============================================================================
+// Image to Text Tests
+// =============================================================================
+
+/// Test solving Image to Text captcha
+#[tokio::test]
+#[ignore]
+async fn test_rucaptcha_image_to_text() {
+    let api_key = common::rucaptcha_api_key();
+    skip_if_no_api_key!(api_key);
+
+    let service = create_service(api_key.unwrap());
+
+    // Load captcha image from tests folder
+    let image_bytes = std::fs::read("tests/captcha.png").expect("Failed to read tests/captcha.png");
+    let task = ImageToText::from_bytes(image_bytes);
+
+    println!("Solving Image to Text captcha...");
+    let result = service.solve_captcha(task).await;
+
+    match result {
+        Ok(solution) => {
+            let image_solution = solution.into_image_to_text();
+            let text = image_solution.text();
+            assert!(!text.is_empty());
+            println!("Successfully solved Image to Text captcha");
+            println!("Recognized text: {}", text);
+        }
+        Err(e) => {
+            panic!("Failed to solve captcha: {}", e);
+        }
+    }
+}
+
+/// Test solving Image to Text captcha with options
+#[tokio::test]
+#[ignore]
+async fn test_rucaptcha_image_to_text_with_options() {
+    let api_key = common::rucaptcha_api_key();
+    skip_if_no_api_key!(api_key);
+
+    let service = create_service(api_key.unwrap());
+
+    // Load captcha image from tests folder
+    let image_bytes = std::fs::read("tests/captcha.png").expect("Failed to read tests/captcha.png");
+    let task = ImageToText::from_bytes(image_bytes)
+        .case_sensitive()
+        .with_min_length(1);
+
+    println!("Solving Image to Text captcha with options...");
+    let result = service.solve_captcha(task).await;
+
+    match result {
+        Ok(solution) => {
+            let image_solution = solution.into_image_to_text();
+            let text = image_solution.text();
+            println!("Successfully solved Image to Text captcha with options");
+            println!("Recognized text: {}", text);
+        }
+        Err(e) => {
+            panic!("Failed to solve captcha: {}", e);
+        }
+    }
+}
+
+// =============================================================================
 // Serialization Tests (non-ignored, no API key required)
 // =============================================================================
+
+/// Test ImageToText task types
+#[test]
+fn test_image_to_text_task_types() {
+    // From bytes
+    let bytes = vec![0x89, 0x50, 0x4E, 0x47]; // PNG magic bytes
+    let task = ImageToText::from_bytes(&bytes);
+    assert!(!task.body().is_empty());
+
+    // From base64
+    let task = ImageToText::from_base64("aVZCT1J3MEtHZ29B");
+    assert_eq!(task.body(), "aVZCT1J3MEtHZ29B");
+
+    // With options (RuCaptcha-specific)
+    let task = ImageToText::from_base64("base64data")
+        .case_sensitive()
+        .phrase()
+        .numbers_only()
+        .with_min_length(4)
+        .with_max_length(8)
+        .with_comment("Enter red text");
+    assert!(task.is_case_sensitive());
+    assert!(task.is_phrase());
+    assert_eq!(task.numeric, 1);
+    assert_eq!(task.min_length, 4);
+    assert_eq!(task.max_length, 8);
+    assert_eq!(task.comment, Some("Enter red text".to_string()));
+}
 
 /// Test shared task types
 #[test]

@@ -10,8 +10,8 @@ mod common;
 
 use captcha_solvers::capsolver::CapsolverProvider;
 use captcha_solvers::{
-    CaptchaSolverService, CaptchaSolverServiceTrait, CloudflareChallenge, ProxyConfig, ReCaptchaV2,
-    ReCaptchaV3, Turnstile,
+    CaptchaSolverService, CaptchaSolverServiceTrait, CloudflareChallenge, ImageToText, ProxyConfig,
+    ReCaptchaV2, ReCaptchaV3, Turnstile,
 };
 
 // =============================================================================
@@ -397,8 +397,70 @@ async fn test_capsolver_cloudflare_challenge() {
 }
 
 // =============================================================================
+// Image to Text Tests
+// =============================================================================
+
+/// Test solving Image to Text captcha
+#[tokio::test]
+#[ignore]
+async fn test_capsolver_image_to_text() {
+    let api_key = common::capsolver_api_key();
+    skip_if_no_api_key!(api_key);
+
+    let service = create_service(api_key.unwrap());
+
+    // Load captcha image from tests folder
+    let image_bytes = std::fs::read("tests/captcha.png").expect("Failed to read tests/captcha.png");
+    let task = ImageToText::from_bytes(image_bytes).with_module("module_005");
+
+    println!("Solving Image to Text captcha...");
+    let result = service.solve_captcha(task).await;
+
+    match result {
+        Ok(solution) => {
+            let image_solution = solution.into_image_to_text();
+            let text = image_solution.text();
+            assert!(!text.is_empty());
+            println!("Successfully solved Image to Text captcha");
+            println!("Recognized text: {}", text);
+        }
+        Err(e) => {
+            panic!("Failed to solve captcha: {}", e);
+        }
+    }
+}
+
+// =============================================================================
 // Serialization Tests (non-ignored, no API key required)
 // =============================================================================
+
+/// Test ImageToText task types
+#[test]
+fn test_image_to_text_task_types() {
+    // From bytes
+    let bytes = vec![0x89, 0x50, 0x4E, 0x47]; // PNG magic bytes
+    let task = ImageToText::from_bytes(&bytes);
+    assert!(!task.body().is_empty());
+
+    // From base64
+    let task = ImageToText::from_base64("aVZCT1J3MEtHZ29B");
+    assert_eq!(task.body(), "aVZCT1J3MEtHZ29B");
+
+    // With options
+    let task = ImageToText::from_base64("base64data")
+        .case_sensitive()
+        .numbers_only()
+        .with_min_length(4)
+        .with_max_length(8);
+    assert!(task.is_case_sensitive());
+    assert_eq!(task.numeric, 1);
+    assert_eq!(task.min_length, 4);
+    assert_eq!(task.max_length, 8);
+
+    // With module (Capsolver)
+    let task = ImageToText::from_base64("base64data").with_module("module_005");
+    assert_eq!(task.module, Some("module_005".to_string()));
+}
 
 /// Test shared task types serialization
 #[test]

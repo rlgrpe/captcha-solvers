@@ -32,6 +32,7 @@ A generic Rust library for solving captchas through various provider services.
 - ReCaptcha V3 (standard, enterprise)
 - Cloudflare Turnstile
 - Cloudflare Challenge (Capsolver only, requires proxy)
+- Image to Text (OCR recognition)
 
 ## Installation
 
@@ -233,6 +234,35 @@ if let Some(clearance) = cf_solution.cf_clearance() {
 }
 ```
 
+### Image to Text (OCR)
+
+```rust
+use captcha_solvers::ImageToText;
+
+// From raw bytes (automatically base64-encoded)
+let image_bytes = std::fs::read("captcha.png") ?;
+let task = ImageToText::from_bytes(image_bytes);
+
+// From pre-encoded base64 string
+let task = ImageToText::from_base64("iVBORw0KGgoAAAANSUhEUgAA...");
+
+// With options (for RuCaptcha)
+let task = ImageToText::from_base64("base64data")
+.case_sensitive()      // Answer is case-sensitive
+.numbers_only()        // Answer contains only numbers
+.with_min_length(4)    // Minimum 4 characters
+.with_max_length(8)    // Maximum 8 characters
+.with_comment("Enter red text only");  // Instruction for workers
+
+// With module (for Capsolver)
+let task = ImageToText::from_base64("base64data")
+.with_module("common");  // "common" or "number"
+
+let solution = service.solve_captcha(task).await?;
+let text = solution.into_image_to_text().text();
+println!("Recognized text: {}", text);
+```
+
 ### Using Proxy
 
 ```rust
@@ -288,6 +318,7 @@ Run an example:
 cargo run --example basic_recaptcha_v2
 cargo run --example recaptcha_v3
 cargo run --example turnstile
+cargo run --example image_to_text
 cargo run --example with_proxy
 cargo run --example with_retry
 cargo run --example with_config

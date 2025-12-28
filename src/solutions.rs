@@ -131,6 +131,32 @@ impl TurnstileSolution {
 /// Type alias for backwards compatibility
 pub type CloudflareChallengeSolution = TurnstileSolution;
 
+/// Image to text captcha solution
+///
+/// This solution type is returned when solving image captchas that require
+/// OCR (Optical Character Recognition) to extract text from an image.
+///
+/// # Example
+///
+/// ```ignore
+/// let solution = service.solve_captcha(task, timeout).await?;
+/// let image_text = solution.into_image_to_text();
+/// println!("Text: {}", image_text.text());
+/// ```
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageToTextSolution {
+    /// The recognized text from the image
+    pub text: String,
+}
+
+impl ImageToTextSolution {
+    /// Get the recognized text
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,5 +213,12 @@ mod tests {
         let solution: CloudflareChallengeSolution = serde_json::from_str(json).unwrap();
         assert_eq!(solution.token(), "cf-token");
         assert_eq!(solution.cf_clearance(), Some("clearance-value"));
+    }
+
+    #[test]
+    fn test_image_to_text_solution_deserialization() {
+        let json = r#"{"text": "ABC123"}"#;
+        let solution: ImageToTextSolution = serde_json::from_str(json).unwrap();
+        assert_eq!(solution.text(), "ABC123");
     }
 }
