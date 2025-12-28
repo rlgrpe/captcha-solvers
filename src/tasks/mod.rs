@@ -11,11 +11,12 @@
 //! | [`ReCaptchaV3`] | Google reCAPTCHA V3 (score-based) |
 //! | [`Turnstile`] | Cloudflare Turnstile widget |
 //! | [`CloudflareChallenge`] | Full-page Cloudflare challenge bypass |
+//! | [`ImageToText`] | Image captcha OCR recognition |
 //!
 //! # Usage
 //!
 //! ```
-//! use captcha_solvers::{ReCaptchaV2, ReCaptchaV3, Turnstile};
+//! use captcha_solvers::{ReCaptchaV2, ReCaptchaV3, Turnstile, ImageToText};
 //!
 //! // ReCaptcha V2 - invisible enterprise with proxy
 //! let task = ReCaptchaV2::new("https://example.com", "site-key")
@@ -30,6 +31,11 @@
 //! // Turnstile - with metadata
 //! let task = Turnstile::new("https://example.com", "0x4AAAA...")
 //!     .with_action("login");
+//!
+//! // Image to text - from raw bytes or base64
+//! let task = ImageToText::from_base64("iVBORw0KGgoAAAANSUhEUgAA...")
+//!     .case_sensitive()
+//!     .with_min_length(4);
 //! ```
 //!
 //! # Unified Task Type
@@ -71,9 +77,11 @@
 //! ```
 
 mod cloudflare;
+mod image_to_text;
 mod recaptcha;
 
 pub use cloudflare::{CloudflareChallenge, Turnstile};
+pub use image_to_text::ImageToText;
 pub use recaptcha::{ReCaptchaV2, ReCaptchaV3};
 
 use std::fmt;
@@ -107,6 +115,8 @@ pub enum CaptchaTask {
     Turnstile(Turnstile),
     /// Cloudflare Challenge (full page bypass)
     CloudflareChallenge(CloudflareChallenge),
+    /// Image to text OCR captcha
+    ImageToText(ImageToText),
 }
 
 impl fmt::Display for CaptchaTask {
@@ -130,6 +140,7 @@ impl fmt::Display for CaptchaTask {
             }
             Self::Turnstile(_) => write!(f, "Turnstile"),
             Self::CloudflareChallenge(_) => write!(f, "CloudflareChallenge"),
+            Self::ImageToText(_) => write!(f, "ImageToText"),
         }
     }
 }
@@ -155,5 +166,11 @@ impl From<Turnstile> for CaptchaTask {
 impl From<CloudflareChallenge> for CaptchaTask {
     fn from(task: CloudflareChallenge) -> Self {
         Self::CloudflareChallenge(task)
+    }
+}
+
+impl From<ImageToText> for CaptchaTask {
+    fn from(task: ImageToText) -> Self {
+        Self::ImageToText(task)
     }
 }

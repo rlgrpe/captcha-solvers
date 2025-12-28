@@ -154,6 +154,39 @@ pub enum RucaptchaTask {
         #[serde(flatten)]
         proxy: RucaptchaProxyFields,
     },
+
+    // -------------------------------------------------------------------------
+    // Image to Text
+    // -------------------------------------------------------------------------
+    /// Image to text OCR recognition
+    ImageToTextTask {
+        /// Base64 encoded image content (no newlines, no data:image prefix)
+        body: String,
+        /// Require answer with spaces (multiple words)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        phrase: Option<bool>,
+        /// Case-sensitive answer
+        #[serde(rename = "case", skip_serializing_if = "Option::is_none")]
+        case_sensitive: Option<bool>,
+        /// Numeric constraint: 0=any, 1=numbers only, 2=letters only, 3=either, 4=must have both
+        #[serde(skip_serializing_if = "Option::is_none")]
+        numeric: Option<u8>,
+        /// Math expression to calculate
+        #[serde(skip_serializing_if = "Option::is_none")]
+        math: Option<bool>,
+        /// Minimum answer length
+        #[serde(rename = "minLength", skip_serializing_if = "Option::is_none")]
+        min_length: Option<u32>,
+        /// Maximum answer length
+        #[serde(rename = "maxLength", skip_serializing_if = "Option::is_none")]
+        max_length: Option<u32>,
+        /// Additional instruction text for workers
+        #[serde(skip_serializing_if = "Option::is_none")]
+        comment: Option<String>,
+        /// Base64-encoded instruction image for workers
+        #[serde(rename = "imgInstructions", skip_serializing_if = "Option::is_none")]
+        img_instructions: Option<String>,
+    },
 }
 
 impl Display for RucaptchaTask {
@@ -172,6 +205,7 @@ impl Display for RucaptchaTask {
             Self::RecaptchaV3TaskProxyless { .. } => write!(f, "ReCaptchaV3"),
             Self::TurnstileTaskProxyless { .. } => write!(f, "Turnstile"),
             Self::TurnstileTask { .. } => write!(f, "Turnstile"),
+            Self::ImageToTextTask { .. } => write!(f, "ImageToText"),
         }
     }
 }
@@ -181,12 +215,14 @@ impl Display for RucaptchaTask {
 // ============================================================================
 
 // Re-export shared solution types for convenience
-pub use crate::solutions::{ReCaptchaSolution, TurnstileSolution};
+pub use crate::solutions::{ImageToTextSolution, ReCaptchaSolution, TurnstileSolution};
 
 /// RuCaptcha solution types
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum RucaptchaSolution {
+    /// Image to text solution (must be first for untagged deserialization priority)
+    ImageToText(ImageToTextSolution),
     /// ReCaptcha solution (V2 or V3)
     ReCaptcha(ReCaptchaSolution),
     /// Turnstile solution
@@ -250,6 +286,34 @@ impl RucaptchaSolution {
     pub fn into_turnstile(self) -> TurnstileSolution {
         self.try_into_turnstile()
             .expect("Expected Turnstile solution")
+    }
+
+    /// Try to extract ImageToText solution (returns reference)
+    pub fn as_image_to_text(&self) -> Option<&ImageToTextSolution> {
+        match self {
+            Self::ImageToText(solution) => Some(solution),
+            _ => None,
+        }
+    }
+
+    /// Try to extract ImageToText solution (consumes self)
+    ///
+    /// Returns `Ok(solution)` if this is an ImageToText solution, or `Err(self)` otherwise.
+    pub fn try_into_image_to_text(self) -> Result<ImageToTextSolution, Box<Self>> {
+        match self {
+            Self::ImageToText(solution) => Ok(solution),
+            other => Err(Box::new(other)),
+        }
+    }
+
+    /// Extract ImageToText solution, panics if not ImageToText
+    ///
+    /// # Panics
+    /// Panics if the solution is not an ImageToText solution.
+    /// Use `try_into_image_to_text()` for a non-panicking alternative.
+    pub fn into_image_to_text(self) -> ImageToTextSolution {
+        self.try_into_image_to_text()
+            .expect("Expected ImageToText solution")
     }
 }
 
@@ -405,6 +469,38 @@ impl TryFrom<crate::tasks::CloudflareChallenge> for RucaptchaTask {
     }
 }
 
+impl From<crate::tasks::ImageToText> for RucaptchaTask {
+    fn from(task: crate::tasks::ImageToText) -> Self {
+        Self::ImageToTextTask {
+            body: task.body,
+            phrase: if task.phrase { Some(true) } else { None },
+            case_sensitive: if task.case_sensitive {
+                Some(true)
+            } else {
+                None
+            },
+            numeric: if task.numeric != 0 {
+                Some(task.numeric)
+            } else {
+                None
+            },
+            math: if task.math { Some(true) } else { None },
+            min_length: if task.min_length > 0 {
+                Some(task.min_length)
+            } else {
+                None
+            },
+            max_length: if task.max_length > 0 {
+                Some(task.max_length)
+            } else {
+                None
+            },
+            comment: task.comment,
+            img_instructions: task.img_instructions,
+        }
+    }
+}
+
 impl TryFrom<crate::tasks::CaptchaTask> for RucaptchaTask {
     type Error = crate::errors::UnsupportedTaskError;
 
@@ -414,6 +510,7 @@ impl TryFrom<crate::tasks::CaptchaTask> for RucaptchaTask {
             crate::tasks::CaptchaTask::ReCaptchaV3(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::Turnstile(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::CloudflareChallenge(t) => t.try_into(),
+            crate::tasks::CaptchaTask::ImageToText(t) => Ok(t.into()),
         }
     }
 }
@@ -628,5 +725,47 @@ mod tests {
         assert_eq!(error.task_type, "CloudflareChallenge");
         assert_eq!(error.provider, "RuCaptcha");
         assert!(error.to_string().contains("not supported by RuCaptcha"));
+    }
+
+    #[test]
+    fn test_image_to_text_serialization() {
+        use crate::tasks::ImageToText;
+        let task: RucaptchaTask = ImageToText::from_base64("aVZCT1J3MEtHZ29B").into();
+        let json = serde_json::to_string(&task).unwrap();
+        assert!(json.contains("ImageToTextTask"));
+        assert!(json.contains("\"body\":\"aVZCT1J3MEtHZ29B\""));
+    }
+
+    #[test]
+    fn test_image_to_text_with_options_serialization() {
+        use crate::tasks::ImageToText;
+        let task: RucaptchaTask = ImageToText::from_base64("base64data")
+            .case_sensitive()
+            .numbers_only()
+            .with_min_length(4)
+            .with_max_length(8)
+            .with_comment("Enter red text")
+            .into();
+        let json = serde_json::to_string(&task).unwrap();
+        assert!(json.contains("ImageToTextTask"));
+        assert!(json.contains("\"case\":true"));
+        assert!(json.contains("\"numeric\":1"));
+        assert!(json.contains("\"minLength\":4"));
+        assert!(json.contains("\"maxLength\":8"));
+        assert!(json.contains("\"comment\":\"Enter red text\""));
+    }
+
+    #[test]
+    fn test_image_to_text_solution_deserialization() {
+        let json = r#"{"text": "ABC123"}"#;
+        let solution: ImageToTextSolution = serde_json::from_str(json).unwrap();
+        assert_eq!(solution.text(), "ABC123");
+    }
+
+    #[test]
+    fn test_image_to_text_display() {
+        use crate::tasks::ImageToText;
+        let task: RucaptchaTask = ImageToText::from_base64("data").into();
+        assert_eq!(task.to_string(), "ImageToText");
     }
 }

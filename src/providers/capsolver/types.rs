@@ -155,6 +155,21 @@ pub enum CapsolverTask {
         #[serde(flatten)]
         proxy: CapsolverProxyFields,
     },
+
+    // -------------------------------------------------------------------------
+    // Image to Text
+    // -------------------------------------------------------------------------
+    /// Image to text OCR recognition
+    ImageToTextTask {
+        /// Base64 encoded image content (no newlines, no data:image prefix)
+        body: String,
+        /// Page source URL to improve accuracy
+        #[serde(rename = "websiteURL", skip_serializing_if = "Option::is_none")]
+        website_url: Option<String>,
+        /// Recognition module (e.g., "common", "number")
+        #[serde(skip_serializing_if = "Option::is_none")]
+        module: Option<String>,
+    },
 }
 
 /// Metadata for Turnstile captcha
@@ -184,6 +199,7 @@ impl Display for CapsolverTask {
             }
             Self::AntiTurnstileTaskProxyLess { .. } => write!(f, "Turnstile"),
             Self::AntiCloudflareTask { .. } => write!(f, "CloudflareChallenge"),
+            Self::ImageToTextTask { .. } => write!(f, "ImageToText"),
         }
     }
 }
@@ -193,12 +209,16 @@ impl Display for CapsolverTask {
 // ============================================================================
 
 // Re-export shared solution types for convenience
-pub use crate::solutions::{CloudflareChallengeSolution, ReCaptchaSolution, TurnstileSolution};
+pub use crate::solutions::{
+    CloudflareChallengeSolution, ImageToTextSolution, ReCaptchaSolution, TurnstileSolution,
+};
 
 /// Capsolver solution types
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum CapsolverSolution {
+    /// Image to text solution (must be first for untagged deserialization priority)
+    ImageToText(ImageToTextSolution),
     /// ReCaptcha solution (V2 or V3)
     ReCaptcha(ReCaptchaSolution),
     /// Turnstile or Cloudflare Challenge solution
@@ -278,6 +298,34 @@ impl CapsolverSolution {
     pub fn into_cloudflare_challenge(self) -> TurnstileSolution {
         self.into_turnstile()
     }
+
+    /// Try to extract ImageToText solution (returns reference)
+    pub fn as_image_to_text(&self) -> Option<&ImageToTextSolution> {
+        match self {
+            Self::ImageToText(solution) => Some(solution),
+            _ => None,
+        }
+    }
+
+    /// Try to extract ImageToText solution (consumes self)
+    ///
+    /// Returns `Ok(solution)` if this is an ImageToText solution, or `Err(self)` otherwise.
+    pub fn try_into_image_to_text(self) -> Result<ImageToTextSolution, Box<Self>> {
+        match self {
+            Self::ImageToText(solution) => Ok(solution),
+            other => Err(Box::new(other)),
+        }
+    }
+
+    /// Extract ImageToText solution, panics if not ImageToText
+    ///
+    /// # Panics
+    /// Panics if the solution is not an ImageToText solution.
+    /// Use `try_into_image_to_text()` for a non-panicking alternative.
+    pub fn into_image_to_text(self) -> ImageToTextSolution {
+        self.try_into_image_to_text()
+            .expect("Expected ImageToText solution")
+    }
 }
 
 // ============================================================================
@@ -285,10 +333,16 @@ impl CapsolverSolution {
 // ============================================================================
 
 /// Response data from Capsolver createTask endpoint (success case)
+///
+/// Some task types (like ImageToText) return the solution immediately
+/// in the createTask response without requiring a separate getTaskResult call.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CreateTaskData {
     pub task_id: String,
+    /// Solution returned immediately (for synchronous tasks like ImageToText)
+    #[serde(default)]
+    pub solution: Option<CapsolverSolution>,
 }
 
 /// Response data from Capsolver getTaskResult endpoint (success case)
@@ -427,6 +481,16 @@ impl From<crate::tasks::CloudflareChallenge> for CapsolverTask {
     }
 }
 
+impl From<crate::tasks::ImageToText> for CapsolverTask {
+    fn from(task: crate::tasks::ImageToText) -> Self {
+        Self::ImageToTextTask {
+            body: task.body,
+            website_url: task.website_url,
+            module: task.module,
+        }
+    }
+}
+
 impl From<crate::tasks::CaptchaTask> for CapsolverTask {
     fn from(task: crate::tasks::CaptchaTask) -> Self {
         match task {
@@ -434,6 +498,7 @@ impl From<crate::tasks::CaptchaTask> for CapsolverTask {
             crate::tasks::CaptchaTask::ReCaptchaV3(t) => t.into(),
             crate::tasks::CaptchaTask::Turnstile(t) => t.into(),
             crate::tasks::CaptchaTask::CloudflareChallenge(t) => t.into(),
+            crate::tasks::CaptchaTask::ImageToText(t) => t.into(),
         }
     }
 }
@@ -605,5 +670,41 @@ mod tests {
         let json = serde_json::to_string(&capsolver_task).unwrap();
         assert!(json.contains("AntiTurnstileTaskProxyLess"));
         assert!(json.contains("\"action\":\"login\""));
+    }
+
+    #[test]
+    fn test_image_to_text_serialization() {
+        use crate::tasks::ImageToText;
+        let task: CapsolverTask = ImageToText::from_base64("aVZCT1J3MEtHZ29B").into();
+        let json = serde_json::to_string(&task).unwrap();
+        assert!(json.contains("ImageToTextTask"));
+        assert!(json.contains("\"body\":\"aVZCT1J3MEtHZ29B\""));
+    }
+
+    #[test]
+    fn test_image_to_text_with_module_serialization() {
+        use crate::tasks::ImageToText;
+        let task: CapsolverTask = ImageToText::from_base64("base64data")
+            .with_module("number")
+            .with_website_url("https://example.com")
+            .into();
+        let json = serde_json::to_string(&task).unwrap();
+        assert!(json.contains("ImageToTextTask"));
+        assert!(json.contains("\"module\":\"number\""));
+        assert!(json.contains("\"websiteURL\":\"https://example.com\""));
+    }
+
+    #[test]
+    fn test_image_to_text_solution_deserialization() {
+        let json = r#"{"text": "ABC123"}"#;
+        let solution: ImageToTextSolution = serde_json::from_str(json).unwrap();
+        assert_eq!(solution.text(), "ABC123");
+    }
+
+    #[test]
+    fn test_image_to_text_display() {
+        use crate::tasks::ImageToText;
+        let task: CapsolverTask = ImageToText::from_base64("data").into();
+        assert_eq!(task.to_string(), "ImageToText");
     }
 }

@@ -6,7 +6,7 @@ use super::types::{
     CapsolverSolution, CapsolverTask, CreateTaskData, CreateTaskRequest, GetTaskData,
     GetTaskResultRequest,
 };
-use crate::providers::traits::Provider;
+use crate::providers::traits::{Provider, TaskCreationOutcome};
 use crate::tasks::CaptchaTask;
 use crate::utils::types::TaskId;
 use reqwest::Url;
@@ -211,11 +211,17 @@ impl CapsolverProvider {
     }
 
     /// Create a captcha solving task (internal)
+    ///
+    /// Returns `TaskCreationOutcome::Ready` if the solution is included in the response
+    /// (e.g., for ImageToText tasks), otherwise returns `TaskCreationOutcome::Pending`.
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(name = "CapsolverProvider::create_task_internal", skip_all)
     )]
-    async fn create_task_internal(&self, task: CapsolverTask) -> Result<TaskId> {
+    async fn create_task_internal(
+        &self,
+        task: CapsolverTask,
+    ) -> Result<TaskCreationOutcome<CapsolverSolution>> {
         let request = CreateTaskRequest {
             client_key: self.api_key(),
             task: &task,
@@ -234,7 +240,11 @@ impl CapsolverProvider {
                 .set_status(Status::Ok);
         }
 
-        Ok(task_id)
+        // Check if solution was returned immediately (e.g., ImageToText)
+        match data.solution {
+            Some(solution) => Ok(TaskCreationOutcome::Ready { task_id, solution }),
+            None => Ok(TaskCreationOutcome::Pending(task_id)),
+        }
     }
 
     /// Get the result of a captcha task (internal)
@@ -277,7 +287,7 @@ impl Provider for CapsolverProvider {
         feature = "tracing",
         tracing::instrument(name = "CapsolverProvider::create_task", skip_all)
     )]
-    async fn create_task(&self, task: CaptchaTask) -> Result<TaskId> {
+    async fn create_task(&self, task: CaptchaTask) -> Result<TaskCreationOutcome<Self::Solution>> {
         // Convert unified task to provider-specific format
         let internal_task: CapsolverTask = task.into();
         self.create_task_internal(internal_task).await

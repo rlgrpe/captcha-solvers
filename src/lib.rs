@@ -21,6 +21,7 @@
 //! | [`ReCaptchaV3`] | Score-based with action support |
 //! | [`Turnstile`] | Cloudflare Turnstile widget |
 //! | [`CloudflareChallenge`] | Full page challenge bypass (Capsolver only) |
+//! | [`ImageToText`] | Image captcha OCR recognition |
 //!
 //! ## Quick Start
 //!
@@ -263,7 +264,7 @@ pub mod rucaptcha {
 pub use errors::{RetryableError, UnsupportedTaskError};
 
 // Provider abstraction
-pub use providers::{CaptchaRetryableProvider, OnRetryCallback, Provider};
+pub use providers::{CaptchaRetryableProvider, OnRetryCallback, Provider, TaskCreationOutcome};
 
 // Service
 pub use service::{
@@ -279,14 +280,17 @@ pub use tokio_util::sync::CancellationToken;
 // Public API - Task Types
 // ============================================================================
 
-pub use tasks::{CaptchaTask, CloudflareChallenge, ReCaptchaV2, ReCaptchaV3, Turnstile};
+pub use tasks::{
+    CaptchaTask, CloudflareChallenge, ImageToText, ReCaptchaV2, ReCaptchaV3, Turnstile,
+};
 
 // ============================================================================
 // Public API - Solution Types
 // ============================================================================
 
 pub use solutions::{
-    CloudflareChallengeSolution, ProviderSolution, ReCaptchaSolution, TurnstileSolution,
+    CloudflareChallengeSolution, ImageToTextSolution, ProviderSolution, ReCaptchaSolution,
+    TurnstileSolution,
 };
 
 // ============================================================================
