@@ -16,6 +16,7 @@ A generic Rust library for solving captchas through various provider services.
 - Automatic retry with exponential backoff and callbacks
 - Cancellation support for long-running operations
 - Proxy support (HTTP, HTTPS, SOCKS4, SOCKS5)
+- Optional rustls TLS backend (optional, `rustls` feature)
 - OpenTelemetry tracing (optional, `tracing` feature)
 - OpenTelemetry metrics (optional, `metrics` feature)
 
@@ -38,21 +39,28 @@ A generic Rust library for solving captchas through various provider services.
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.2" }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.3" }
 ```
 
 To use only specific providers:
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.2", default-features = false, features = ["capsolver"] }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.3", default-features = false, features = ["capsolver"] }
+```
+
+With rustls (pure Rust TLS) instead of native-tls:
+
+```toml
+[dependencies]
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.3", features = ["rustls"] }
 ```
 
 With metrics support:
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.2", features = ["metrics"] }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.3", features = ["metrics"] }
 ```
 
 ## Quick Start
