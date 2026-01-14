@@ -1,20 +1,21 @@
 [package]
 name = "captcha-solvers"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 description = "Generic captcha solving library with provider abstraction"
 license = "MIT"
 
 [features]
-default = ["capsolver", "rucaptcha", "tracing"]
+default = ["capsolver", "rucaptcha", "tracing", "native-tls"]
 capsolver = []
 rucaptcha = []
 # Enable tracing instrumentation
 tracing = ["dep:tracing", "dep:tracing-opentelemetry", "dep:opentelemetry"]
 # Enable OpenTelemetry metrics
 metrics = ["dep:opentelemetry"]
-# Use rustls instead of native-tls for HTTP client
-rustls = ["reqwest/rustls-tls-native-roots"]
+# TLS backends (native-tls is default)
+native-tls = ["reqwest/native-tls"]
+rustls-tls = ["reqwest/rustls-tls", "reqwest-middleware/rustls-tls"]
 
 [dependencies]
 # Core
@@ -26,7 +27,7 @@ thiserror = "2.0"
 base64 = "0.22"
 
 # HTTP client
-reqwest = { version = "0.12", default-features = false, features = ["json", "default-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "charset", "http2"] }
 reqwest-middleware = { version = "0.4", features = ["json"] }
 url = { version = "2.5", features = ["serde"] }
 secrecy = { version = "0.10", features = ["serde"] }
