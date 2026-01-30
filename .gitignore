@@ -1,5 +1,29 @@
+# Build artifacts
 /target
-Cargo.lock
+
+# IDE
 .idea
+.vscode
+*.swp
+*.swo
+
+# Environment
 .env
+.env.local
+.env.*.local
+
+# Secrets/Config
 .claude
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+*.profraw
+*.profdata
+tarpaulin-report.html
+
+# Logs
+*.log

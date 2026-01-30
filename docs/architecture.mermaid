@@ -1,0 +1,52 @@
+%% Captcha Solvers Architecture
+%% This diagram shows the high-level flow of captcha solving operations
+
+graph TB
+    subgraph "User Application"
+        A[User Code] --> B[CaptchaSolverService]
+    end
+
+    subgraph "Service Layer"
+        B --> C{Task Type}
+        C --> D[ReCaptchaV2]
+        C --> E[ReCaptchaV3]
+        C --> F[Turnstile]
+        C --> G[CloudflareChallenge]
+        C --> H[ImageToText]
+    end
+
+    subgraph "Provider Abstraction"
+        D & E & F & G & H --> I[Provider Trait]
+        I --> J[CaptchaRetryableProvider]
+        J --> K{Provider Selection}
+    end
+
+    subgraph "Provider Implementations"
+        K --> L[CapsolverProvider]
+        K --> M[RuCaptchaProvider]
+    end
+
+    subgraph "External Services"
+        L --> N[Capsolver API]
+        M --> O[RuCaptcha API]
+    end
+
+    subgraph "Configuration"
+        P[ServiceConfig] --> B
+        Q[RetryConfig] --> J
+        R[ProxyConfig] --> D & E & F & G
+    end
+
+    subgraph "Observability"
+        S[tracing] -.-> B
+        S -.-> J
+        T[OpenTelemetry] -.-> S
+    end
+
+    style A fill:#e1f5fe
+    style B fill:#bbdefb
+    style I fill:#c8e6c9
+    style L fill:#fff9c4
+    style M fill:#fff9c4
+    style N fill:#ffccbc
+    style O fill:#ffccbc
