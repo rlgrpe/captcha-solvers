@@ -94,3 +94,63 @@ jobs:
             grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.rs" src/ 2>/dev/null | head -20 >> $GITHUB_STEP_SUMMARY || true
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+
+  unused-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-udeps
+        run: cargo install cargo-udeps --locked
+
+      - name: Check unused dependencies
+        run: cargo +nightly udeps --all-features
+        continue-on-error: true
+
+  duplicate-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install jscpd
+        run: npm install -g jscpd
+
+      - name: Check duplicate code
+        run: |
+          echo "## Duplicate Code Report" >> $GITHUB_STEP_SUMMARY
+          jscpd src/ --min-lines 10 --threshold 5 --reporters markdown >> $GITHUB_STEP_SUMMARY 2>&1 || true
+
+  validate-agents-md:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Verify AGENTS.md commands work
+        run: |
+          echo "## AGENTS.md Validation" >> $GITHUB_STEP_SUMMARY
+          echo "Testing documented commands..." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ cargo build --all-features" >> $GITHUB_STEP_SUMMARY
+          cargo build --all-features
+          echo "✅ cargo test --all-features (list only)" >> $GITHUB_STEP_SUMMARY
+          cargo test --all-features -- --list > /dev/null
+          echo "✅ cargo clippy --all-features" >> $GITHUB_STEP_SUMMARY
+          cargo clippy --all-features -- -D warnings > /dev/null
+          echo "✅ cargo fmt --check" >> $GITHUB_STEP_SUMMARY
+          cargo fmt --check
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All AGENTS.md commands validated successfully!" >> $GITHUB_STEP_SUMMARY
