@@ -1,0 +1,14 @@
+# CODEOWNERS - Defines code ownership for automatic review requests
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for all files
+* @rlgrpe
+
+# Provider implementations
+/src/providers/ @rlgrpe
+
+# Core service layer
+/src/service/ @rlgrpe
+
+# CI/CD configuration
+/.github/ @rlgrpe
