@@ -24,6 +24,9 @@ pub struct UnsupportedTaskError {
     pub task_type: &'static str,
     /// The provider name that doesn't support this task
     pub provider: &'static str,
+    /// Optional list of unsupported fields (when the task type is supported
+    /// but specific field combinations are not).
+    pub unsupported_fields: Vec<&'static str>,
 }
 
 impl UnsupportedTaskError {
@@ -32,18 +35,43 @@ impl UnsupportedTaskError {
         Self {
             task_type,
             provider,
+            unsupported_fields: Vec::new(),
+        }
+    }
+
+    /// Create an error for a supported task type with unsupported field combinations.
+    pub fn unsupported_fields(
+        task_type: &'static str,
+        provider: &'static str,
+        fields: Vec<&'static str>,
+    ) -> Self {
+        Self {
+            task_type,
+            provider,
+            unsupported_fields: fields,
         }
     }
 }
 
 impl fmt::Display for UnsupportedTaskError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Task type '{}' is not supported by {}. \
-             This task type is only available with other providers.",
-            self.task_type, self.provider
-        )
+        if self.unsupported_fields.is_empty() {
+            write!(
+                f,
+                "Task type '{}' is not supported by {}. \
+                 This task type is only available with other providers.",
+                self.task_type, self.provider
+            )
+        } else {
+            write!(
+                f,
+                "Task type '{}' on {} does not support field(s): {}. \
+                 Remove these fields or use a different provider.",
+                self.task_type,
+                self.provider,
+                self.unsupported_fields.join(", ")
+            )
+        }
     }
 }
 

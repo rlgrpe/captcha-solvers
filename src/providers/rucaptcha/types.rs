@@ -413,20 +413,37 @@ impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
     }
 }
 
-impl From<crate::tasks::ReCaptchaV3> for RucaptchaTask {
-    fn from(task: crate::tasks::ReCaptchaV3) -> Self {
+impl TryFrom<crate::tasks::ReCaptchaV3> for RucaptchaTask {
+    type Error = crate::errors::UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::ReCaptchaV3) -> Result<Self, Self::Error> {
+        let mut unsupported = Vec::new();
+        if task.proxy.is_some() {
+            unsupported.push("proxy");
+        }
+        if task.enterprise_payload.is_some() {
+            unsupported.push("enterprise_payload");
+        }
+        if !unsupported.is_empty() {
+            return Err(crate::errors::UnsupportedTaskError::unsupported_fields(
+                "ReCaptchaV3",
+                "RuCaptcha",
+                unsupported,
+            ));
+        }
+
         let is_enterprise = if task.is_enterprise { Some(true) } else { None };
         // RuCaptcha V3 uses min_score, default to 0.9 if not specified
         let min_score = task.min_score.unwrap_or(0.9);
 
-        Self::RecaptchaV3TaskProxyless {
+        Ok(Self::RecaptchaV3TaskProxyless {
             website_url: task.website_url,
             website_key: task.website_key,
             min_score,
             page_action: task.page_action,
             is_enterprise,
             api_domain: task.api_domain,
-        }
+        })
     }
 }
 
@@ -507,7 +524,7 @@ impl TryFrom<crate::tasks::CaptchaTask> for RucaptchaTask {
     fn try_from(task: crate::tasks::CaptchaTask) -> Result<Self, Self::Error> {
         match task {
             crate::tasks::CaptchaTask::ReCaptchaV2(t) => Ok(t.into()),
-            crate::tasks::CaptchaTask::ReCaptchaV3(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ReCaptchaV3(t) => t.try_into(),
             crate::tasks::CaptchaTask::Turnstile(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::TurnstileChallenge(_) => Err(
                 crate::errors::UnsupportedTaskError::new("TurnstileChallenge", "RuCaptcha"),
@@ -569,7 +586,8 @@ mod tests {
     fn test_recaptcha_v3_serialization() {
         let task: RucaptchaTask = ReCaptchaV3::new("https://example.com", "site-key")
             .with_min_score(0.9)
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("RecaptchaV3TaskProxyless"));
         assert!(json.contains("minScore"));
@@ -581,7 +599,8 @@ mod tests {
         let task: RucaptchaTask = ReCaptchaV3::new("https://example.com", "site-key")
             .with_action("submit")
             .with_min_score(0.7)
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("pageAction"));
         assert!(json.contains("submit"));
@@ -631,10 +650,13 @@ mod tests {
         let task: RucaptchaTask = ReCaptchaV2::new("url", "key").into();
         assert_eq!(task.to_string(), "ReCaptchaV2");
 
-        let task: RucaptchaTask = ReCaptchaV3::new("url", "key").into();
+        let task: RucaptchaTask = ReCaptchaV3::new("url", "key").try_into().unwrap();
         assert_eq!(task.to_string(), "ReCaptchaV3");
 
-        let task: RucaptchaTask = ReCaptchaV3::new("url", "key").enterprise().into();
+        let task: RucaptchaTask = ReCaptchaV3::new("url", "key")
+            .enterprise()
+            .try_into()
+            .unwrap();
         assert_eq!(task.to_string(), "ReCaptchaV3Enterprise");
 
         let task: RucaptchaTask = Turnstile::new("url", "key").into();
@@ -759,6 +781,28 @@ mod tests {
         assert!(json.contains("\"minLength\":4"));
         assert!(json.contains("\"maxLength\":8"));
         assert!(json.contains("\"comment\":\"Enter red text\""));
+    }
+
+    #[test]
+    fn test_recaptcha_v3_rejects_proxy() {
+        let proxy = ProxyConfig::http("192.168.1.1", 8080);
+        let task = ReCaptchaV3::new("https://example.com", "key").with_proxy(proxy);
+        let result: Result<RucaptchaTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"proxy"));
+    }
+
+    #[test]
+    fn test_recaptcha_v3_rejects_enterprise_payload() {
+        use std::collections::HashMap;
+        let mut payload = HashMap::new();
+        payload.insert("s".to_string(), serde_json::json!("value"));
+        let task = ReCaptchaV3::new("https://example.com", "key").with_enterprise_payload(payload);
+        let result: Result<RucaptchaTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"enterprise_payload"));
     }
 
     #[test]

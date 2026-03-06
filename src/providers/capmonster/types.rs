@@ -314,23 +314,43 @@ impl From<crate::tasks::ReCaptchaV2> for CapmonsterTask {
     }
 }
 
-impl From<crate::tasks::ReCaptchaV3> for CapmonsterTask {
-    fn from(task: crate::tasks::ReCaptchaV3) -> Self {
+impl TryFrom<crate::tasks::ReCaptchaV3> for CapmonsterTask {
+    type Error = UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::ReCaptchaV3) -> Result<Self, Self::Error> {
+        let mut unsupported = Vec::new();
+        if task.proxy.is_some() {
+            unsupported.push("proxy");
+        }
+        if task.api_domain.is_some() {
+            unsupported.push("api_domain");
+        }
+        if task.enterprise_payload.is_some() {
+            unsupported.push("enterprise_payload");
+        }
+        if !unsupported.is_empty() {
+            return Err(UnsupportedTaskError::unsupported_fields(
+                "ReCaptchaV3",
+                "CapMonster",
+                unsupported,
+            ));
+        }
+
         if task.is_enterprise {
-            Self::RecaptchaV3EnterpriseTask {
+            Ok(Self::RecaptchaV3EnterpriseTask {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 min_score: task.min_score,
                 page_action: task.page_action,
-            }
+            })
         } else {
-            Self::RecaptchaV3TaskProxyless {
+            Ok(Self::RecaptchaV3TaskProxyless {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 min_score: task.min_score,
                 page_action: task.page_action,
                 is_enterprise: None,
-            }
+            })
         }
     }
 }
@@ -388,12 +408,47 @@ impl From<crate::tasks::TurnstileWaitRoom> for CapmonsterTask {
     }
 }
 
-impl From<crate::tasks::ImageToText> for CapmonsterTask {
-    fn from(task: crate::tasks::ImageToText) -> Self {
-        Self::ImageToTextTask {
+impl TryFrom<crate::tasks::ImageToText> for CapmonsterTask {
+    type Error = UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::ImageToText) -> Result<Self, Self::Error> {
+        let mut unsupported = Vec::new();
+        if task.phrase {
+            unsupported.push("phrase");
+        }
+        if task.case_sensitive {
+            unsupported.push("case_sensitive");
+        }
+        if task.numeric != 0 {
+            unsupported.push("numeric");
+        }
+        if task.math {
+            unsupported.push("math");
+        }
+        if task.min_length > 0 {
+            unsupported.push("min_length");
+        }
+        if task.max_length > 0 {
+            unsupported.push("max_length");
+        }
+        if task.comment.is_some() {
+            unsupported.push("comment");
+        }
+        if task.img_instructions.is_some() {
+            unsupported.push("img_instructions");
+        }
+        if !unsupported.is_empty() {
+            return Err(UnsupportedTaskError::unsupported_fields(
+                "ImageToText",
+                "CapMonster",
+                unsupported,
+            ));
+        }
+
+        Ok(Self::ImageToTextTask {
             body: task.body,
             module: task.module,
-        }
+        })
     }
 }
 
@@ -403,7 +458,7 @@ impl TryFrom<crate::tasks::CaptchaTask> for CapmonsterTask {
     fn try_from(task: crate::tasks::CaptchaTask) -> Result<Self, Self::Error> {
         match task {
             crate::tasks::CaptchaTask::ReCaptchaV2(t) => Ok(t.into()),
-            crate::tasks::CaptchaTask::ReCaptchaV3(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ReCaptchaV3(t) => t.try_into(),
             crate::tasks::CaptchaTask::Turnstile(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::TurnstileChallenge(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::TurnstileWaitRoom(t) => Ok(t.into()),
@@ -411,7 +466,7 @@ impl TryFrom<crate::tasks::CaptchaTask> for CapmonsterTask {
                 "CloudflareChallenge",
                 "CapMonster",
             )),
-            crate::tasks::CaptchaTask::ImageToText(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ImageToText(t) => t.try_into(),
         }
     }
 }
@@ -451,7 +506,8 @@ mod tests {
         let task: CapmonsterTask = ReCaptchaV3::new("https://example.com", "site-key")
             .enterprise()
             .with_min_score(0.7)
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("RecaptchaV3EnterpriseTask"));
         assert!(json.contains("minScore"));
@@ -519,7 +575,9 @@ mod tests {
 
     #[test]
     fn test_image_to_text_serialization() {
-        let task: CapmonsterTask = ImageToText::from_base64("aVZCT1J3MEtHZ29B").into();
+        let task: CapmonsterTask = ImageToText::from_base64("aVZCT1J3MEtHZ29B")
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("ImageToTextTask"));
         assert!(json.contains("\"body\":\"aVZCT1J3MEtHZ29B\""));
@@ -530,7 +588,8 @@ mod tests {
     fn test_image_to_text_with_module_serialization() {
         let task: CapmonsterTask = ImageToText::from_base64("base64data")
             .with_module("yandex")
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("ImageToTextTask"));
         assert!(json.contains("\"CapMonsterModule\":\"yandex\""));
@@ -546,7 +605,40 @@ mod tests {
 
     #[test]
     fn test_image_to_text_display() {
-        let task: CapmonsterTask = ImageToText::from_base64("data").into();
+        let task: CapmonsterTask = ImageToText::from_base64("data").try_into().unwrap();
         assert_eq!(task.to_string(), "ImageToText");
+    }
+
+    #[test]
+    fn test_recaptcha_v3_rejects_proxy() {
+        let proxy = ProxyConfig::http("192.168.1.1", 8080);
+        let task = ReCaptchaV3::new("https://example.com", "key").with_proxy(proxy);
+        let result: Result<CapmonsterTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"proxy"));
+    }
+
+    #[test]
+    fn test_recaptcha_v3_rejects_api_domain() {
+        let task = ReCaptchaV3::new("https://example.com", "key").with_api_domain("recaptcha.net");
+        let result: Result<CapmonsterTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"api_domain"));
+    }
+
+    #[test]
+    fn test_image_to_text_rejects_ocr_fields() {
+        let task = ImageToText::from_base64("data")
+            .case_sensitive()
+            .numbers_only()
+            .with_min_length(4);
+        let result: Result<CapmonsterTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"case_sensitive"));
+        assert!(err.unsupported_fields.contains(&"numeric"));
+        assert!(err.unsupported_fields.contains(&"min_length"));
     }
 }
