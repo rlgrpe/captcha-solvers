@@ -4,6 +4,8 @@ A generic Rust library for solving captchas through various provider services.
 
 > **[Sign up for CapSolver](https://dashboard.capsolver.com/passport/register?inviteCode=zhvlp56mC7mg)**
 
+> **[Sign up for CapMonster Cloud](https://capmonster.cloud/)**
+
 > **[Sign up for RuCaptcha](https://rucaptcha.com/?from=13331351)**
 
 > **Disclaimer**: This library is provided as-is. I am not obligated to maintain it, fix bugs, or add features. If you want to contribute improvements, please submit a pull request.
@@ -22,16 +24,19 @@ A generic Rust library for solving captchas through various provider services.
 
 ## Supported Providers
 
-| Provider | Feature Flag | Cloudflare Challenge |
-|----------|--------------|----------------------|
-| [Capsolver](https://capsolver.com) | `capsolver` (default) | Yes |
-| [RuCaptcha](https://rucaptcha.com) | `rucaptcha` (default) | No |
+| Provider | Feature Flag | Special Tasks |
+|----------|--------------|---------------|
+| [Capsolver](https://capsolver.com) | `capsolver` (default) | CloudflareChallenge |
+| [CapMonster Cloud](https://capmonster.cloud) | `capmonster` (default) | TurnstileChallenge, TurnstileWaitRoom |
+| [RuCaptcha](https://rucaptcha.com) | `rucaptcha` (default) | — |
 
 ## Supported Captcha Types
 
 - ReCaptcha V2 (standard, invisible, enterprise)
 - ReCaptcha V3 (standard, enterprise)
 - Cloudflare Turnstile
+- Cloudflare Turnstile Challenge — token and cf_clearance modes (CapMonster)
+- Cloudflare Waiting Room (CapMonster, requires proxy)
 - Cloudflare Challenge (Capsolver only, requires proxy)
 - Image to Text (OCR recognition)
 
@@ -46,7 +51,7 @@ To use only specific providers:
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.4", default-features = false, features = ["capsolver"] }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.4", default-features = false, features = ["capmonster"] }
 ```
 
 With rustls-tls (pure Rust TLS) instead of native-tls:
@@ -236,10 +241,59 @@ let task = CloudflareChallenge::new("https://protected-site.com", proxy);
 let solution = service.solve_captcha(task).await?;
 let cf_solution = solution.into_cloudflare_challenge();
 
-println!("Token: {}", cf_solution.token());
+if let Some(token) = cf_solution.token() {
+    println!("Token: {}", token);
+}
 if let Some(clearance) = cf_solution.cf_clearance() {
     println!("cf_clearance: {}", clearance);
 }
+```
+
+### Turnstile Challenge (CapMonster)
+
+```rust
+use captcha_solvers::{TurnstileChallenge, ProxyConfig};
+
+// Token mode — returns a Turnstile token
+let task = TurnstileChallenge::token(
+    "https://example.com",
+    "site-key",
+    "managed",           // page_action
+    "cdata-value",       // data
+    "page-data-value",   // page_data
+    "Mozilla/5.0...",    // user_agent
+);
+let solution = service.solve_captcha(task).await?;
+let token = solution.into_turnstile().token().unwrap();
+
+// cf_clearance mode — returns cf_clearance cookie (requires proxy)
+let proxy = ProxyConfig::http("192.168.1.1", 8080).with_auth("user", "pass");
+let task = TurnstileChallenge::cf_clearance(
+    "https://example.com",
+    "site-key",
+    "base64-encoded-html-page",
+    "Mozilla/5.0...",
+    proxy,
+);
+let solution = service.solve_captcha(task).await?;
+let clearance = solution.into_turnstile().cf_clearance().unwrap();
+```
+
+### Turnstile Wait Room (CapMonster)
+
+```rust
+use captcha_solvers::{TurnstileWaitRoom, ProxyConfig};
+
+let proxy = ProxyConfig::socks5("proxy.example.com", 1080).with_auth("user", "pass");
+let task = TurnstileWaitRoom::new(
+    "https://example.com/waitroom",
+    "site-key",
+    "base64-encoded-html-page",
+    "Mozilla/5.0...",
+    proxy,
+);
+let solution = service.solve_captcha(task).await?;
+let clearance = solution.into_turnstile().cf_clearance().unwrap();
 ```
 
 ### Image to Text (OCR)
@@ -262,9 +316,9 @@ let task = ImageToText::from_base64("base64data")
 .with_max_length(8)    // Maximum 8 characters
 .with_comment("Enter red text only");  // Instruction for workers
 
-// With module (for Capsolver)
+// With module (Capsolver: "common"/"number", CapMonster: "yandex"/etc.)
 let task = ImageToText::from_base64("base64data")
-.with_module("common");  // "common" or "number"
+.with_module("common");
 
 let solution = service.solve_captcha(task).await?;
 let text = solution.into_image_to_text().text();
@@ -318,6 +372,8 @@ Set your API key:
 
 ```bash
 export CAPSOLVER_API_KEY=your_key_here
+# or for CapMonster Cloud:
+export CAPMONSTER_API_KEY=your_key_here
 ```
 
 Run an example:

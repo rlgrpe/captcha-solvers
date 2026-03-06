@@ -69,7 +69,7 @@ pub trait CaptchaSolverServiceTrait: Send + Sync {
     /// // Turnstile
     /// let task = Turnstile::new("https://example.com", "site_key");
     /// let solution = service.solve_captcha(task).await?;
-    /// let token = solution.into_turnstile().token();
+    /// let token = solution.into_turnstile().token().unwrap();
     /// ```
     async fn solve_captcha<T: Into<CaptchaTask> + Send>(
         &self,

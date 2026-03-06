@@ -27,7 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let solution = service.solve_captcha(task).await?;
 
     let turnstile = solution.into_turnstile();
-    println!("Solved! Token: {}...", &turnstile.token()[..50]);
+    let token = turnstile.token().expect("Expected token in solution");
+    println!("Solved! Token: {}...", &token[..50]);
 
     Ok(())
 }

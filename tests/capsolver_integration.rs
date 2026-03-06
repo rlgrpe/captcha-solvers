@@ -342,7 +342,7 @@ async fn test_capsolver_turnstile() {
     match result {
         Ok(solution) => {
             let turnstile = solution.into_turnstile();
-            let token = turnstile.token();
+            let token = turnstile.token().unwrap();
             assert!(!token.is_empty());
             println!("Successfully solved Cloudflare Turnstile");
             println!("Token length: {}", token.len());
@@ -385,7 +385,7 @@ async fn test_capsolver_cloudflare_challenge() {
         Ok(solution) => {
             let cf_solution = solution.into_cloudflare_challenge();
             println!("Successfully solved Cloudflare Challenge");
-            println!("Token: {}", cf_solution.token());
+            println!("Token: {}", cf_solution.token().unwrap_or("none"));
             if let Some(clearance) = cf_solution.cf_clearance() {
                 println!("cf_clearance: {}", clearance);
             }

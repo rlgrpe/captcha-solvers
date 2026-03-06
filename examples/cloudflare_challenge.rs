@@ -48,10 +48,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cf_solution = solution.into_cloudflare_challenge();
     println!("Solved!");
-    println!(
-        "Token: {}...",
-        &cf_solution.token()[..50.min(cf_solution.token().len())]
-    );
+    if let Some(token) = cf_solution.token() {
+        println!("Token: {}...", &token[..50.min(token.len())]);
+    }
 
     if let Some(clearance) = cf_solution.cf_clearance() {
         println!("cf_clearance cookie: {}", clearance);

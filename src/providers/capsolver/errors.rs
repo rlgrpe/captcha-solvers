@@ -1,4 +1,4 @@
-use crate::errors::RetryableError;
+use crate::errors::{RetryableError, UnsupportedTaskError};
 use crate::utils::types::TaskId;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
@@ -19,6 +19,9 @@ pub enum CapsolverError {
     #[error("Capsolver API error: {0}")]
     Api(#[source] CapsolverApiError),
 
+    #[error("{0}")]
+    UnsupportedTask(#[source] UnsupportedTaskError),
+
     #[error(
         "Timeout waiting for captcha solution after {:.1}s; Task id: {task_id}",
         timeout.as_secs_f64()
@@ -38,7 +41,9 @@ impl RetryableError for CapsolverError {
             // API errors are retryable based on error code
             CapsolverError::Api(error) => error.error_code.is_retryable(),
             // Non-retryable errors
-            CapsolverError::BuildHttpClient(_) | CapsolverError::ParseResponse(_) => false,
+            CapsolverError::BuildHttpClient(_)
+            | CapsolverError::ParseResponse(_)
+            | CapsolverError::UnsupportedTask(_) => false,
         }
     }
 
@@ -51,7 +56,9 @@ impl RetryableError for CapsolverError {
             // API errors have their own logic
             CapsolverError::Api(error) => error.error_code.should_retry_operation(),
             // Configuration errors - won't work until fixed
-            CapsolverError::BuildHttpClient(_) | CapsolverError::ParseResponse(_) => false,
+            CapsolverError::BuildHttpClient(_)
+            | CapsolverError::ParseResponse(_)
+            | CapsolverError::UnsupportedTask(_) => false,
         }
     }
 }

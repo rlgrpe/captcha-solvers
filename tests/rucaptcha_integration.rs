@@ -305,7 +305,7 @@ async fn test_rucaptcha_turnstile() {
     match result {
         Ok(solution) => {
             let turnstile = solution.into_turnstile();
-            let token = turnstile.token();
+            let token = turnstile.token().unwrap();
             assert!(!token.is_empty());
             println!("Successfully solved Cloudflare Turnstile");
             println!("Token length: {}", token.len());
@@ -343,7 +343,7 @@ async fn test_rucaptcha_turnstile_with_proxy() {
     match result {
         Ok(solution) => {
             let turnstile = solution.into_turnstile();
-            let token = turnstile.token();
+            let token = turnstile.token().unwrap();
             assert!(!token.is_empty());
             println!("Successfully solved Cloudflare Turnstile with proxy");
             println!("Token length: {}", token.len());

@@ -289,7 +289,8 @@ impl Provider for CapsolverProvider {
     )]
     async fn create_task(&self, task: CaptchaTask) -> Result<TaskCreationOutcome<Self::Solution>> {
         // Convert unified task to provider-specific format
-        let internal_task: CapsolverTask = task.into();
+        let internal_task: CapsolverTask =
+            task.try_into().map_err(CapsolverError::UnsupportedTask)?;
         self.create_task_internal(internal_task).await
     }
 

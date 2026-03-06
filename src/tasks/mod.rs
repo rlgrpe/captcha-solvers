@@ -10,6 +10,8 @@
 //! | [`ReCaptchaV2`] | Google reCAPTCHA V2 (checkbox or invisible) |
 //! | [`ReCaptchaV3`] | Google reCAPTCHA V3 (score-based) |
 //! | [`Turnstile`] | Cloudflare Turnstile widget |
+//! | [`TurnstileChallenge`] | Cloudflare Turnstile Challenge |
+//! | [`TurnstileWaitRoom`] | Cloudflare Waiting Room |
 //! | [`CloudflareChallenge`] | Full-page Cloudflare challenge bypass |
 //! | [`ImageToText`] | Image captcha OCR recognition |
 //!
@@ -79,10 +81,14 @@
 mod cloudflare;
 mod image_to_text;
 mod recaptcha;
+mod turnstile_challenge;
+mod turnstile_waitroom;
 
 pub use cloudflare::{CloudflareChallenge, Turnstile};
 pub use image_to_text::ImageToText;
 pub use recaptcha::{ReCaptchaV2, ReCaptchaV3};
+pub use turnstile_challenge::{TurnstileChallenge, TurnstileChallengeMode};
+pub use turnstile_waitroom::TurnstileWaitRoom;
 
 use std::fmt;
 
@@ -113,6 +119,10 @@ pub enum CaptchaTask {
     ReCaptchaV3(ReCaptchaV3),
     /// Cloudflare Turnstile
     Turnstile(Turnstile),
+    /// Cloudflare Turnstile Challenge
+    TurnstileChallenge(TurnstileChallenge),
+    /// Cloudflare Waiting Room
+    TurnstileWaitRoom(TurnstileWaitRoom),
     /// Cloudflare Challenge (full page bypass)
     CloudflareChallenge(CloudflareChallenge),
     /// Image to text OCR captcha
@@ -139,6 +149,11 @@ impl fmt::Display for CaptchaTask {
                 }
             }
             Self::Turnstile(_) => write!(f, "Turnstile"),
+            Self::TurnstileChallenge(task) => match task.mode {
+                TurnstileChallengeMode::Token => write!(f, "TurnstileChallenge"),
+                TurnstileChallengeMode::CfClearance => write!(f, "TurnstileChallengeCfClearance"),
+            },
+            Self::TurnstileWaitRoom(_) => write!(f, "TurnstileWaitRoom"),
             Self::CloudflareChallenge(_) => write!(f, "CloudflareChallenge"),
             Self::ImageToText(_) => write!(f, "ImageToText"),
         }
@@ -160,6 +175,18 @@ impl From<ReCaptchaV3> for CaptchaTask {
 impl From<Turnstile> for CaptchaTask {
     fn from(task: Turnstile) -> Self {
         Self::Turnstile(task)
+    }
+}
+
+impl From<TurnstileChallenge> for CaptchaTask {
+    fn from(task: TurnstileChallenge) -> Self {
+        Self::TurnstileChallenge(task)
+    }
+}
+
+impl From<TurnstileWaitRoom> for CaptchaTask {
+    fn from(task: TurnstileWaitRoom) -> Self {
+        Self::TurnstileWaitRoom(task)
     }
 }
 
