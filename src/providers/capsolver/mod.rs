@@ -21,7 +21,7 @@
 //! ## Quick Start
 //!
 //! ```rust,ignore
-//! use captcha_solvers::providers::capsolver::CapsolverProvider;
+//! use captcha_solvers::capsolver::CapsolverProvider;
 //! use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
 //! use std::time::Duration;
 //!
@@ -42,7 +42,7 @@
 //! The provider can be configured using the builder pattern:
 //!
 //! ```rust,ignore
-//! use captcha_solvers::providers::capsolver::CapsolverProvider;
+//! use captcha_solvers::capsolver::CapsolverProvider;
 //! use url::Url;
 //!
 //! // Simple: default API URL
@@ -76,7 +76,7 @@
 //!
 //! ```rust,ignore
 //! use captcha_solvers::RetryableError;
-//! use captcha_solvers::providers::capsolver::CapsolverError;
+//! use captcha_solvers::capsolver::CapsolverError;
 //!
 //! match result {
 //!     Err(e) if e.is_retryable() => { /* retry later */ }

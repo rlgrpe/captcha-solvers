@@ -40,7 +40,7 @@ const GET_TASK_RESULT_PATH: &str = "getTaskResult";
 /// use captcha_solvers::{
 ///     CaptchaSolverService, CaptchaSolverServiceTrait,
 ///     ReCaptchaV2, Turnstile,
-///     providers::rucaptcha::RucaptchaProvider,
+///     rucaptcha::RucaptchaProvider,
 /// };
 /// use std::time::Duration;
 ///
@@ -79,7 +79,7 @@ impl Debug for RucaptchaProvider {
 /// # Example
 ///
 /// ```rust,ignore
-/// use captcha_solvers::providers::rucaptcha::RucaptchaProvider;
+/// use captcha_solvers::rucaptcha::RucaptchaProvider;
 /// use url::Url;
 ///
 /// let provider = RucaptchaProvider::builder("your-api-key")

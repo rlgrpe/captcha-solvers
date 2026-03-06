@@ -404,6 +404,7 @@ cargo run --example with_retry
 cargo run --example with_config
 cargo run --example with_cancellation
 cargo run --example rucaptcha_provider
+cargo run --example capmonster_provider
 ```
 
 For Cloudflare Challenge (requires proxy):

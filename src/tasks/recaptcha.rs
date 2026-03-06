@@ -1,7 +1,7 @@
 //! ReCaptcha task types with builder pattern.
 //!
 //! This module provides provider-agnostic ReCaptcha task definitions that can be
-//! converted to any supported provider's format using the `Into` trait.
+//! converted to any supported provider's format using `TryFrom`/`TryInto`.
 
 use crate::utils::proxy::ProxyConfig;
 use std::collections::HashMap;
@@ -9,7 +9,8 @@ use std::collections::HashMap;
 /// ReCaptcha V2 task with fluent builder pattern.
 ///
 /// Use this type to create ReCaptcha V2 solving requests that work with any provider.
-/// The task can be converted to provider-specific formats using `.into()`.
+/// The task can be converted to provider-specific formats using `try_into()`.
+/// Unsupported field combinations are rejected with [`UnsupportedTaskError`](crate::UnsupportedTaskError).
 ///
 /// # Examples
 ///
@@ -37,14 +38,14 @@ use std::collections::HashMap;
 ///
 /// ```ignore
 /// use captcha_solvers::ReCaptchaV2;
-/// use captcha_solvers::providers::capsolver::CapsolverTask;
+/// use captcha_solvers::capsolver::CapsolverTask;
 ///
 /// let task = ReCaptchaV2::new("https://example.com", "site-key")
 ///     .invisible()
 ///     .enterprise();
 ///
-/// // Convert to Capsolver format
-/// let capsolver_task: CapsolverTask = task.into();
+/// // Convert to Capsolver format (TryFrom — may fail for unsupported combinations)
+/// let capsolver_task: CapsolverTask = task.try_into()?;
 /// ```
 #[derive(Debug, Clone)]
 pub struct ReCaptchaV2 {

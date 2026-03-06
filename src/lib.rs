@@ -267,13 +267,14 @@
 //! CaptchaRetryableProvider<P>  (optional retry wrapper)
 //!         │
 //!         ▼
-//!     Provider          (trait: CapsolverProvider, RucaptchaProvider)
+//!     Provider          (trait: CapsolverProvider, CapmonsterProvider, RucaptchaProvider)
 //! ```
 //!
 //! ## Features
 //!
 //! - `capsolver` - Capsolver provider support (enabled by default)
-//! - `rucaptcha` - RuCaptcha provider support
+//! - `capmonster` - CapMonster Cloud provider support (enabled by default)
+//! - `rucaptcha` - RuCaptcha provider support (enabled by default)
 //! - `tracing` - OpenTelemetry tracing instrumentation (enabled by default)
 //! - `metrics` - OpenTelemetry metrics support
 

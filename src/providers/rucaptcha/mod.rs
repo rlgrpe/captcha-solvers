@@ -20,7 +20,7 @@
 //! ## Quick Start
 //!
 //! ```rust,ignore
-//! use captcha_solvers::providers::rucaptcha::RucaptchaProvider;
+//! use captcha_solvers::rucaptcha::RucaptchaProvider;
 //! use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
 //! use std::time::Duration;
 //!
@@ -41,7 +41,7 @@
 //! The provider can be configured using the builder pattern:
 //!
 //! ```rust,ignore
-//! use captcha_solvers::providers::rucaptcha::RucaptchaProvider;
+//! use captcha_solvers::rucaptcha::RucaptchaProvider;
 //! use url::Url;
 //!
 //! // Simple: default API URL
@@ -93,7 +93,7 @@
 //!
 //! ```rust,ignore
 //! use captcha_solvers::RetryableError;
-//! use captcha_solvers::providers::rucaptcha::RucaptchaError;
+//! use captcha_solvers::rucaptcha::RucaptchaError;
 //!
 //! match result {
 //!     Err(e) if e.is_retryable() => { /* retry later */ }

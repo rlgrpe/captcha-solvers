@@ -40,7 +40,7 @@ const GET_TASK_RESULT_PATH: &str = "getTaskResult";
 /// use captcha_solvers::{
 ///     CaptchaSolverService, CaptchaSolverServiceTrait,
 ///     ReCaptchaV2, Turnstile,
-///     providers::capsolver::CapsolverProvider,
+///     capsolver::CapsolverProvider,
 /// };
 /// use std::time::Duration;
 ///
@@ -79,7 +79,7 @@ impl Debug for CapsolverProvider {
 /// # Example
 ///
 /// ```rust,ignore
-/// use captcha_solvers::providers::capsolver::CapsolverProvider;
+/// use captcha_solvers::capsolver::CapsolverProvider;
 /// use url::Url;
 ///
 /// let provider = CapsolverProvider::builder("your-api-key")

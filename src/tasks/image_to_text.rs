@@ -1,14 +1,15 @@
 //! Image to text captcha task type with builder pattern.
 //!
 //! This module provides provider-agnostic image to text captcha task definitions
-//! that can be converted to any supported provider's format using the `Into` trait.
+//! that can be converted to any supported provider's format using `TryFrom`/`TryInto`.
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 
 /// Image to text captcha task with fluent builder pattern.
 ///
 /// Use this type to create image captcha solving requests that work with any provider.
-/// The task can be converted to provider-specific formats using `.into()`.
+/// The task can be converted to provider-specific formats using `try_into()`.
+/// Unsupported field combinations are rejected with [`UnsupportedTaskError`](crate::UnsupportedTaskError).
 ///
 /// # Examples
 ///
