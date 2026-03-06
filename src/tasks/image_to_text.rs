@@ -1,14 +1,15 @@
 //! Image to text captcha task type with builder pattern.
 //!
 //! This module provides provider-agnostic image to text captcha task definitions
-//! that can be converted to any supported provider's format using the `Into` trait.
+//! that can be converted to provider-specific formats. Unsupported combinations are rejected via `TryFrom`.
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 
 /// Image to text captcha task with fluent builder pattern.
 ///
 /// Use this type to create image captcha solving requests that work with any provider.
-/// The task can be converted to provider-specific formats using `.into()`.
+/// The task is converted to provider-specific formats. Some providers reject unsupported
+/// field combinations with [`UnsupportedTaskError`](crate::UnsupportedTaskError).
 ///
 /// # Examples
 ///
@@ -199,7 +200,12 @@ impl ImageToText {
     /// - 2: letters only
     /// - 3: either numbers or letters
     /// - 4: both numbers AND letters required
+    ///
+    /// # Panics
+    ///
+    /// Panics if `numeric` is greater than 4.
     pub fn with_numeric(mut self, numeric: u8) -> Self {
+        assert!(numeric <= 4, "numeric must be 0..=4, got {numeric}");
         self.numeric = numeric;
         self
     }
@@ -343,6 +349,12 @@ mod tests {
             task.img_instructions,
             Some(STANDARD.encode(&instruction_bytes))
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "numeric must be 0..=4")]
+    fn test_image_to_text_numeric_out_of_range() {
+        ImageToText::from_base64("x").with_numeric(5);
     }
 
     #[test]

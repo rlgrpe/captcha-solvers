@@ -1,7 +1,7 @@
 //! ReCaptcha task types with builder pattern.
 //!
 //! This module provides provider-agnostic ReCaptcha task definitions that can be
-//! converted to any supported provider's format using the `Into` trait.
+//! converted to provider-specific formats. Unsupported combinations are rejected via `TryFrom`.
 
 use crate::utils::proxy::ProxyConfig;
 use std::collections::HashMap;
@@ -9,7 +9,8 @@ use std::collections::HashMap;
 /// ReCaptcha V2 task with fluent builder pattern.
 ///
 /// Use this type to create ReCaptcha V2 solving requests that work with any provider.
-/// The task can be converted to provider-specific formats using `.into()`.
+/// The task is converted to provider-specific formats. Some providers reject unsupported
+/// field combinations with [`UnsupportedTaskError`](crate::UnsupportedTaskError).
 ///
 /// # Examples
 ///
@@ -37,14 +38,14 @@ use std::collections::HashMap;
 ///
 /// ```ignore
 /// use captcha_solvers::ReCaptchaV2;
-/// use captcha_solvers::providers::capsolver::CapsolverTask;
+/// use captcha_solvers::capsolver::CapsolverTask;
 ///
 /// let task = ReCaptchaV2::new("https://example.com", "site-key")
 ///     .invisible()
 ///     .enterprise();
 ///
-/// // Convert to Capsolver format
-/// let capsolver_task: CapsolverTask = task.into();
+/// // Convert to Capsolver format (TryFrom — may fail for unsupported combinations)
+/// let capsolver_task: CapsolverTask = task.try_into()?;
 /// ```
 #[derive(Debug, Clone)]
 pub struct ReCaptchaV2 {
@@ -297,8 +298,12 @@ impl ReCaptchaV3 {
     ///
     /// # Panics
     ///
-    /// Does not panic, but scores outside 0.0-1.0 may cause API errors.
+    /// Panics if `score` is not in the range `0.1..=0.9`.
     pub fn with_min_score(mut self, score: f32) -> Self {
+        assert!(
+            (0.1..=0.9).contains(&score),
+            "min_score must be between 0.1 and 0.9, got {score}"
+        );
         self.min_score = Some(score);
         self
     }
@@ -533,5 +538,17 @@ mod tests {
         assert_eq!(low.min_score(), Some(0.3));
         assert_eq!(medium.min_score(), Some(0.7));
         assert_eq!(high.min_score(), Some(0.9));
+    }
+
+    #[test]
+    #[should_panic(expected = "min_score must be between 0.1 and 0.9")]
+    fn test_recaptcha_v3_min_score_too_low() {
+        ReCaptchaV3::new("https://example.com", "key").with_min_score(0.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "min_score must be between 0.1 and 0.9")]
+    fn test_recaptcha_v3_min_score_too_high() {
+        ReCaptchaV3::new("https://example.com", "key").with_min_score(1.0);
     }
 }

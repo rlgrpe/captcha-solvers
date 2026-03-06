@@ -40,20 +40,19 @@ const GET_TASK_RESULT_PATH: &str = "getTaskResult";
 /// use captcha_solvers::{
 ///     CaptchaSolverService, CaptchaSolverServiceTrait,
 ///     ReCaptchaV2, Turnstile,
-///     providers::capsolver::CapsolverProvider,
+///     capsolver::CapsolverProvider,
 /// };
-/// use std::time::Duration;
 ///
 /// // Create provider directly with API key
 /// let provider = CapsolverProvider::new("api_key")?;
-/// let service = CaptchaSolverService::with_provider(provider);
+/// let service = CaptchaSolverService::new(provider);
 ///
 /// // Use shared task types
 /// let task = ReCaptchaV2::new("https://example.com", "site_key")
 ///     .invisible()
 ///     .enterprise();
 ///
-/// let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
+/// let solution = service.solve_captcha(task).await?;
 /// println!("Token: {}", solution.into_recaptcha().token());
 /// ```
 #[derive(Clone)]
@@ -79,7 +78,7 @@ impl Debug for CapsolverProvider {
 /// # Example
 ///
 /// ```rust,ignore
-/// use captcha_solvers::providers::capsolver::CapsolverProvider;
+/// use captcha_solvers::capsolver::CapsolverProvider;
 /// use url::Url;
 ///
 /// let provider = CapsolverProvider::builder("your-api-key")

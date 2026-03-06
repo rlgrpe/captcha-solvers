@@ -60,6 +60,9 @@ mod errors;
 mod structure;
 mod traits;
 
+#[cfg(test)]
+mod tests;
+
 pub use config::{
     CaptchaSolverServiceConfig, CaptchaSolverServiceConfigBuilder, ConfigError, MIN_POLL_INTERVAL,
     MIN_TIMEOUT,

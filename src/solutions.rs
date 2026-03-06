@@ -24,7 +24,7 @@ pub trait ProviderSolution: Send + Sync {}
 /// # Example
 ///
 /// ```ignore
-/// let solution = service.solve_captcha(task, timeout).await?;
+/// let solution = service.solve_captcha(task).await?;
 /// let recaptcha = solution.into_recaptcha();
 /// println!("Token: {}", recaptcha.token());
 /// ```
@@ -83,7 +83,7 @@ impl ReCaptchaSolution {
 /// # Example
 ///
 /// ```ignore
-/// let solution = service.solve_captcha(task, timeout).await?;
+/// let solution = service.solve_captcha(task).await?;
 /// let turnstile = solution.into_turnstile();
 /// if let Some(token) = turnstile.token() {
 ///     println!("Token: {}", token);
@@ -184,7 +184,7 @@ pub type CloudflareChallengeSolution = TurnstileSolution;
 /// # Example
 ///
 /// ```ignore
-/// let solution = service.solve_captcha(task, timeout).await?;
+/// let solution = service.solve_captcha(task).await?;
 /// let image_text = solution.into_image_to_text();
 /// println!("Text: {}", image_text.text());
 /// ```

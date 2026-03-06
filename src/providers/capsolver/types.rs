@@ -1,4 +1,4 @@
-use crate::utils::proxy::CapsolverProxyFields;
+use crate::utils::proxy::ApiProxyFields;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -48,7 +48,7 @@ pub enum CapsolverTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         #[serde(flatten)]
-        proxy: CapsolverProxyFields,
+        proxy: ApiProxyFields,
     },
 
     /// ReCaptcha V2 Enterprise using server's built-in proxy
@@ -81,7 +81,7 @@ pub enum CapsolverTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         #[serde(flatten)]
-        proxy: CapsolverProxyFields,
+        proxy: ApiProxyFields,
     },
 
     /// ReCaptcha V3 using server's built-in proxy
@@ -109,7 +109,7 @@ pub enum CapsolverTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         #[serde(flatten)]
-        proxy: CapsolverProxyFields,
+        proxy: ApiProxyFields,
     },
 
     /// ReCaptcha V3 Enterprise using server's built-in proxy
@@ -153,7 +153,7 @@ pub enum CapsolverTask {
         html: Option<String>,
         /// Proxy fields (static or sticky proxy, not rotating)
         #[serde(flatten)]
-        proxy: CapsolverProxyFields,
+        proxy: ApiProxyFields,
     },
 
     // -------------------------------------------------------------------------
@@ -374,84 +374,119 @@ pub(crate) struct GetTaskResultRequest<'a> {
 // From implementations for shared task types
 // ============================================================================
 
-impl From<crate::tasks::ReCaptchaV2> for CapsolverTask {
-    fn from(task: crate::tasks::ReCaptchaV2) -> Self {
+impl TryFrom<crate::tasks::ReCaptchaV2> for CapsolverTask {
+    type Error = crate::errors::UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::ReCaptchaV2) -> Result<Self, Self::Error> {
         let is_invisible = if task.is_invisible { Some(true) } else { None };
 
         match (task.is_enterprise, task.proxy) {
             // Enterprise with proxy
-            (true, Some(proxy)) => Self::ReCaptchaV2EnterpriseTask {
+            (true, Some(proxy)) => Ok(Self::ReCaptchaV2EnterpriseTask {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 enterprise_payload: task.enterprise_payload,
                 is_invisible,
                 api_domain: task.api_domain,
-                proxy: proxy.into_capsolver_fields(),
-            },
+                proxy: proxy.into_api_proxy_fields(),
+            }),
             // Enterprise without proxy
-            (true, None) => Self::ReCaptchaV2EnterpriseTaskProxyLess {
+            (true, None) => Ok(Self::ReCaptchaV2EnterpriseTaskProxyLess {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 enterprise_payload: task.enterprise_payload,
                 is_invisible,
                 api_domain: task.api_domain,
-            },
-            // Standard (proxyless - Capsolver doesn't have V2 with proxy non-enterprise)
-            (false, _) => Self::ReCaptchaV2TaskProxyLess {
+            }),
+            // Standard with proxy — Capsolver does not support V2 non-enterprise with proxy
+            (false, Some(_)) => Err(crate::errors::UnsupportedTaskError::unsupported_fields(
+                "ReCaptchaV2",
+                "Capsolver",
+                vec!["proxy"],
+            )),
+            // Standard without proxy
+            (false, None) => Ok(Self::ReCaptchaV2TaskProxyLess {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 recaptcha_data_s_value: task.recaptcha_data_s_value,
                 is_invisible,
                 api_domain: task.api_domain,
-            },
+            }),
         }
     }
 }
 
-impl From<crate::tasks::ReCaptchaV3> for CapsolverTask {
-    fn from(task: crate::tasks::ReCaptchaV3) -> Self {
+impl TryFrom<crate::tasks::ReCaptchaV3> for CapsolverTask {
+    type Error = crate::errors::UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::ReCaptchaV3) -> Result<Self, Self::Error> {
+        if task.min_score.is_some() {
+            return Err(crate::errors::UnsupportedTaskError::unsupported_fields(
+                "ReCaptchaV3",
+                "Capsolver",
+                vec!["min_score"],
+            ));
+        }
+
         match (task.is_enterprise, task.proxy) {
             // Enterprise with proxy
-            (true, Some(proxy)) => Self::ReCaptchaV3EnterpriseTask {
+            (true, Some(proxy)) => Ok(Self::ReCaptchaV3EnterpriseTask {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 enterprise_payload: task.enterprise_payload,
                 api_domain: task.api_domain,
-                proxy: proxy.into_capsolver_fields(),
-            },
+                proxy: proxy.into_api_proxy_fields(),
+            }),
             // Enterprise without proxy
-            (true, None) => Self::ReCaptchaV3EnterpriseTaskProxyLess {
+            (true, None) => Ok(Self::ReCaptchaV3EnterpriseTaskProxyLess {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 enterprise_payload: task.enterprise_payload,
                 api_domain: task.api_domain,
-            },
+            }),
             // Standard with proxy
-            (false, Some(proxy)) => Self::ReCaptchaV3Task {
+            (false, Some(proxy)) => Ok(Self::ReCaptchaV3Task {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 api_domain: task.api_domain,
-                proxy: proxy.into_capsolver_fields(),
-            },
+                proxy: proxy.into_api_proxy_fields(),
+            }),
             // Standard without proxy
-            (false, None) => Self::ReCaptchaV3TaskProxyLess {
+            (false, None) => Ok(Self::ReCaptchaV3TaskProxyLess {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 api_domain: task.api_domain,
-            },
+            }),
         }
     }
 }
 
-impl From<crate::tasks::Turnstile> for CapsolverTask {
-    fn from(task: crate::tasks::Turnstile) -> Self {
+impl TryFrom<crate::tasks::Turnstile> for CapsolverTask {
+    type Error = crate::errors::UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::Turnstile) -> Result<Self, Self::Error> {
+        let mut unsupported = Vec::new();
+        if task.proxy.is_some() {
+            unsupported.push("proxy");
+        }
+        if task.pagedata.is_some() {
+            unsupported.push("pagedata");
+        }
+        if !unsupported.is_empty() {
+            return Err(crate::errors::UnsupportedTaskError::unsupported_fields(
+                "Turnstile",
+                "Capsolver",
+                unsupported,
+            ));
+        }
+
         let metadata = if task.action.is_some() || task.cdata.is_some() {
             Some(TurnstileMetadata {
                 action: task.action,
@@ -461,12 +496,11 @@ impl From<crate::tasks::Turnstile> for CapsolverTask {
             None
         };
 
-        // Note: Capsolver Turnstile is proxyless only
-        Self::AntiTurnstileTaskProxyLess {
+        Ok(Self::AntiTurnstileTaskProxyLess {
             website_url: task.website_url,
             website_key: task.website_key,
             metadata,
-        }
+        })
     }
 }
 
@@ -476,18 +510,53 @@ impl From<crate::tasks::CloudflareChallenge> for CapsolverTask {
             website_url: task.website_url,
             user_agent: task.user_agent,
             html: task.html,
-            proxy: task.proxy.into_capsolver_fields(),
+            proxy: task.proxy.into_api_proxy_fields(),
         }
     }
 }
 
-impl From<crate::tasks::ImageToText> for CapsolverTask {
-    fn from(task: crate::tasks::ImageToText) -> Self {
-        Self::ImageToTextTask {
+impl TryFrom<crate::tasks::ImageToText> for CapsolverTask {
+    type Error = crate::errors::UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::ImageToText) -> Result<Self, Self::Error> {
+        let mut unsupported = Vec::new();
+        if task.phrase {
+            unsupported.push("phrase");
+        }
+        if task.case_sensitive {
+            unsupported.push("case_sensitive");
+        }
+        if task.numeric != 0 {
+            unsupported.push("numeric");
+        }
+        if task.math {
+            unsupported.push("math");
+        }
+        if task.min_length > 0 {
+            unsupported.push("min_length");
+        }
+        if task.max_length > 0 {
+            unsupported.push("max_length");
+        }
+        if task.comment.is_some() {
+            unsupported.push("comment");
+        }
+        if task.img_instructions.is_some() {
+            unsupported.push("img_instructions");
+        }
+        if !unsupported.is_empty() {
+            return Err(crate::errors::UnsupportedTaskError::unsupported_fields(
+                "ImageToText",
+                "Capsolver",
+                unsupported,
+            ));
+        }
+
+        Ok(Self::ImageToTextTask {
             body: task.body,
             website_url: task.website_url,
             module: task.module,
-        }
+        })
     }
 }
 
@@ -496,11 +565,11 @@ impl TryFrom<crate::tasks::CaptchaTask> for CapsolverTask {
 
     fn try_from(task: crate::tasks::CaptchaTask) -> Result<Self, Self::Error> {
         match task {
-            crate::tasks::CaptchaTask::ReCaptchaV2(t) => Ok(t.into()),
-            crate::tasks::CaptchaTask::ReCaptchaV3(t) => Ok(t.into()),
-            crate::tasks::CaptchaTask::Turnstile(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ReCaptchaV2(t) => t.try_into(),
+            crate::tasks::CaptchaTask::ReCaptchaV3(t) => t.try_into(),
+            crate::tasks::CaptchaTask::Turnstile(t) => t.try_into(),
             crate::tasks::CaptchaTask::CloudflareChallenge(t) => Ok(t.into()),
-            crate::tasks::CaptchaTask::ImageToText(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ImageToText(t) => t.try_into(),
             crate::tasks::CaptchaTask::TurnstileChallenge(_) => Err(
                 crate::errors::UnsupportedTaskError::new("TurnstileChallenge", "Capsolver"),
             ),
@@ -523,7 +592,9 @@ mod tests {
 
     #[test]
     fn test_recaptcha_v2_serialization() {
-        let task: CapsolverTask = ReCaptchaV2::new("https://example.com", "site-key").into();
+        let task: CapsolverTask = ReCaptchaV2::new("https://example.com", "site-key")
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("ReCaptchaV2TaskProxyLess"));
         assert!(json.contains("websiteURL"));
@@ -534,7 +605,8 @@ mod tests {
     fn test_recaptcha_v2_invisible_serialization() {
         let task: CapsolverTask = ReCaptchaV2::new("https://example.com", "site-key")
             .invisible()
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("isInvisible"));
         assert!(json.contains("true"));
@@ -544,7 +616,8 @@ mod tests {
     fn test_recaptcha_v3_with_action_serialization() {
         let task: CapsolverTask = ReCaptchaV3::new("https://example.com", "site-key")
             .with_action("submit")
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("ReCaptchaV3TaskProxyLess"));
         assert!(json.contains("pageAction"));
@@ -553,7 +626,9 @@ mod tests {
 
     #[test]
     fn test_turnstile_serialization() {
-        let task: CapsolverTask = Turnstile::new("https://example.com", "site-key").into();
+        let task: CapsolverTask = Turnstile::new("https://example.com", "site-key")
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("AntiTurnstileTaskProxyLess"));
     }
@@ -562,7 +637,8 @@ mod tests {
     fn test_turnstile_with_metadata_serialization() {
         let task: CapsolverTask = Turnstile::new("https://example.com", "site-key")
             .with_action("login")
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("metadata"));
         assert!(json.contains("action"));
@@ -623,13 +699,13 @@ mod tests {
 
     #[test]
     fn test_task_display() {
-        let task: CapsolverTask = ReCaptchaV2::new("url", "key").into();
+        let task: CapsolverTask = ReCaptchaV2::new("url", "key").try_into().unwrap();
         assert_eq!(task.to_string(), "ReCaptchaV2");
 
-        let task: CapsolverTask = ReCaptchaV3::new("url", "key").into();
+        let task: CapsolverTask = ReCaptchaV3::new("url", "key").try_into().unwrap();
         assert_eq!(task.to_string(), "ReCaptchaV3");
 
-        let task: CapsolverTask = Turnstile::new("url", "key").into();
+        let task: CapsolverTask = Turnstile::new("url", "key").try_into().unwrap();
         assert_eq!(task.to_string(), "Turnstile");
 
         let proxy = ProxyConfig::http("proxy", 8080);
@@ -641,8 +717,10 @@ mod tests {
     fn test_proxy_serialization() {
         let proxy = ProxyConfig::socks5("192.168.1.1", 1080).with_auth("user", "pass");
         let task: CapsolverTask = ReCaptchaV3::new("https://example.com", "key")
+            .enterprise()
             .with_proxy(proxy)
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("\"proxyType\":\"socks5\""));
         assert!(json.contains("\"proxyAddress\":\"192.168.1.1\""));
@@ -654,7 +732,7 @@ mod tests {
     #[test]
     fn test_from_shared_recaptcha_v2() {
         let task = ReCaptchaV2::new("https://example.com", "key");
-        let capsolver_task: CapsolverTask = task.into();
+        let capsolver_task: CapsolverTask = task.try_into().unwrap();
         let json = serde_json::to_string(&capsolver_task).unwrap();
         assert!(json.contains("ReCaptchaV2TaskProxyLess"));
     }
@@ -665,7 +743,7 @@ mod tests {
         let task = ReCaptchaV2::new("https://example.com", "key")
             .enterprise()
             .with_proxy(proxy);
-        let capsolver_task: CapsolverTask = task.into();
+        let capsolver_task: CapsolverTask = task.try_into().unwrap();
         let json = serde_json::to_string(&capsolver_task).unwrap();
         assert!(json.contains("ReCaptchaV2EnterpriseTask"));
         assert!(json.contains("proxyAddress"));
@@ -674,7 +752,7 @@ mod tests {
     #[test]
     fn test_from_shared_turnstile() {
         let task = Turnstile::new("https://example.com", "key").with_action("login");
-        let capsolver_task: CapsolverTask = task.into();
+        let capsolver_task: CapsolverTask = task.try_into().unwrap();
         let json = serde_json::to_string(&capsolver_task).unwrap();
         assert!(json.contains("AntiTurnstileTaskProxyLess"));
         assert!(json.contains("\"action\":\"login\""));
@@ -683,7 +761,9 @@ mod tests {
     #[test]
     fn test_image_to_text_serialization() {
         use crate::tasks::ImageToText;
-        let task: CapsolverTask = ImageToText::from_base64("aVZCT1J3MEtHZ29B").into();
+        let task: CapsolverTask = ImageToText::from_base64("aVZCT1J3MEtHZ29B")
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("ImageToTextTask"));
         assert!(json.contains("\"body\":\"aVZCT1J3MEtHZ29B\""));
@@ -695,7 +775,8 @@ mod tests {
         let task: CapsolverTask = ImageToText::from_base64("base64data")
             .with_module("number")
             .with_website_url("https://example.com")
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("ImageToTextTask"));
         assert!(json.contains("\"module\":\"number\""));
@@ -712,7 +793,61 @@ mod tests {
     #[test]
     fn test_image_to_text_display() {
         use crate::tasks::ImageToText;
-        let task: CapsolverTask = ImageToText::from_base64("data").into();
+        let task: CapsolverTask = ImageToText::from_base64("data").try_into().unwrap();
         assert_eq!(task.to_string(), "ImageToText");
+    }
+
+    // === Rejection tests for unsupported field combinations ===
+
+    #[test]
+    fn test_recaptcha_v2_non_enterprise_with_proxy_rejected() {
+        let proxy = ProxyConfig::http("192.168.1.1", 8080);
+        let task = ReCaptchaV2::new("https://example.com", "key").with_proxy(proxy);
+        let result: Result<CapsolverTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.task_type, "ReCaptchaV2");
+        assert!(!err.unsupported_fields.is_empty());
+    }
+
+    #[test]
+    fn test_turnstile_with_proxy_rejected() {
+        let proxy = ProxyConfig::http("192.168.1.1", 8080);
+        let task = Turnstile::new("https://example.com", "key").with_proxy(proxy);
+        let result: Result<CapsolverTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"proxy"));
+    }
+
+    #[test]
+    fn test_turnstile_with_pagedata_rejected() {
+        let task = Turnstile::new("https://example.com", "key").with_pagedata("data");
+        let result: Result<CapsolverTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"pagedata"));
+    }
+
+    #[test]
+    fn test_image_to_text_with_ocr_fields_rejected() {
+        use crate::tasks::ImageToText;
+        let task = ImageToText::from_base64("data")
+            .case_sensitive()
+            .numbers_only();
+        let result: Result<CapsolverTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"case_sensitive"));
+        assert!(err.unsupported_fields.contains(&"numeric"));
+    }
+
+    #[test]
+    fn test_recaptcha_v3_rejects_min_score() {
+        let task = ReCaptchaV3::new("https://example.com", "key").with_min_score(0.9);
+        let result: Result<CapsolverTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"min_score"));
     }
 }

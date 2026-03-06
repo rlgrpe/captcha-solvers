@@ -1,8 +1,6 @@
 use crate::errors::{RetryableError, UnsupportedTaskError};
-use crate::utils::types::TaskId;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
-use std::time::Duration;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -24,12 +22,6 @@ pub enum CapmonsterError {
 
     #[error("Invalid task data: {0}")]
     InvalidTaskData(String),
-
-    #[error(
-        "Timeout waiting for captcha solution after {:.1}s; Task id: {task_id}",
-        timeout.as_secs_f64()
-    )]
-    SolutionTimeout { timeout: Duration, task_id: TaskId },
 }
 
 pub type Result<T> = std::result::Result<T, CapmonsterError>;
@@ -42,8 +34,7 @@ impl RetryableError for CapmonsterError {
             CapmonsterError::BuildHttpClient(_)
             | CapmonsterError::ParseResponse(_)
             | CapmonsterError::UnsupportedTask(_)
-            | CapmonsterError::InvalidTaskData(_)
-            | CapmonsterError::SolutionTimeout { .. } => false,
+            | CapmonsterError::InvalidTaskData(_) => false,
         }
     }
 
@@ -51,7 +42,6 @@ impl RetryableError for CapmonsterError {
         match self {
             CapmonsterError::HttpRequest(_) => true,
             CapmonsterError::Api(error) => error.error_code.should_retry_operation(),
-            CapmonsterError::SolutionTimeout { .. } => true,
             CapmonsterError::BuildHttpClient(_)
             | CapmonsterError::ParseResponse(_)
             | CapmonsterError::UnsupportedTask(_)

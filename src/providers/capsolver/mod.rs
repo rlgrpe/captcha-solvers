@@ -13,23 +13,26 @@
 //! | ReCaptcha V3 Enterprise | [`ReCaptchaV3`](crate::ReCaptchaV3) with `.enterprise()` | No |
 //! | Cloudflare Turnstile | [`Turnstile`](crate::Turnstile) | No |
 //! | Cloudflare Challenge | [`CloudflareChallenge`](crate::CloudflareChallenge) | Yes |
+//! | Image to Text | [`ImageToText`](crate::ImageToText) | No |
+//!
+//! **Note**: [`TurnstileChallenge`](crate::TurnstileChallenge) and
+//! [`TurnstileWaitRoom`](crate::TurnstileWaitRoom) are not supported by Capsolver.
 //!
 //! ## Quick Start
 //!
 //! ```rust,ignore
-//! use captcha_solvers::providers::capsolver::CapsolverProvider;
+//! use captcha_solvers::capsolver::CapsolverProvider;
 //! use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
-//! use std::time::Duration;
 //!
 //! // Create provider with API key
 //! let provider = CapsolverProvider::new("your_api_key")?;
-//! let service = CaptchaSolverService::with_provider(provider);
+//! let service = CaptchaSolverService::new(provider);
 //!
 //! // Solve ReCaptcha V2 using shared task types
 //! let task = ReCaptchaV2::new("https://example.com", "site_key")
 //!     .invisible()
 //!     .enterprise();
-//! let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
+//! let solution = service.solve_captcha(task).await?;
 //! let token = solution.into_recaptcha().token();
 //! ```
 //!
@@ -38,7 +41,7 @@
 //! The provider can be configured using the builder pattern:
 //!
 //! ```rust,ignore
-//! use captcha_solvers::providers::capsolver::CapsolverProvider;
+//! use captcha_solvers::capsolver::CapsolverProvider;
 //! use url::Url;
 //!
 //! // Simple: default API URL
@@ -64,6 +67,7 @@
 //! - **ReCaptcha V2/V3**: [`ReCaptchaSolution`] with `token()` method
 //! - **Turnstile**: [`TurnstileSolution`] with `token()` method
 //! - **Cloudflare Challenge**: [`CloudflareChallengeSolution`] with `token()` and `cf_clearance()` methods
+//! - **Image to Text**: [`ImageToTextSolution`] with `text()` method
 //!
 //! ## Error Handling
 //!
@@ -71,7 +75,7 @@
 //!
 //! ```rust,ignore
 //! use captcha_solvers::RetryableError;
-//! use captcha_solvers::providers::capsolver::CapsolverError;
+//! use captcha_solvers::capsolver::CapsolverError;
 //!
 //! match result {
 //!     Err(e) if e.is_retryable() => { /* retry later */ }
@@ -96,7 +100,8 @@ pub use provider::{CapsolverProvider, CapsolverProviderBuilder, DEFAULT_API_URL}
 
 // Solutions (public API)
 pub use types::{
-    CapsolverSolution, CloudflareChallengeSolution, ReCaptchaSolution, TurnstileSolution,
+    CapsolverSolution, CloudflareChallengeSolution, ImageToTextSolution, ReCaptchaSolution,
+    TurnstileSolution,
 };
 
 // Re-export proxy types for convenience (also available at crate root)
