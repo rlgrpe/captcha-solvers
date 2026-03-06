@@ -199,7 +199,12 @@ impl ImageToText {
     /// - 2: letters only
     /// - 3: either numbers or letters
     /// - 4: both numbers AND letters required
+    ///
+    /// # Panics
+    ///
+    /// Panics if `numeric` is greater than 4.
     pub fn with_numeric(mut self, numeric: u8) -> Self {
+        assert!(numeric <= 4, "numeric must be 0..=4, got {numeric}");
         self.numeric = numeric;
         self
     }
@@ -343,6 +348,12 @@ mod tests {
             task.img_instructions,
             Some(STANDARD.encode(&instruction_bytes))
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "numeric must be 0..=4")]
+    fn test_image_to_text_numeric_out_of_range() {
+        ImageToText::from_base64("x").with_numeric(5);
     }
 
     #[test]

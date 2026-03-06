@@ -1,8 +1,6 @@
 use crate::errors::{RetryableError, UnsupportedTaskError};
-use crate::utils::types::TaskId;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
-use std::time::Duration;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -21,12 +19,6 @@ pub enum CapsolverError {
 
     #[error("{0}")]
     UnsupportedTask(#[source] UnsupportedTaskError),
-
-    #[error(
-        "Timeout waiting for captcha solution after {:.1}s; Task id: {task_id}",
-        timeout.as_secs_f64()
-    )]
-    SolutionTimeout { timeout: Duration, task_id: TaskId },
 }
 
 pub type Result<T> = std::result::Result<T, CapsolverError>;
@@ -34,13 +26,8 @@ pub type Result<T> = std::result::Result<T, CapsolverError>;
 impl RetryableError for CapsolverError {
     fn is_retryable(&self) -> bool {
         match self {
-            // Retryable HTTP/network errors
             CapsolverError::HttpRequest(_) => true,
-            // Timeouts are NOT retryable at task level (task already expired)
-            CapsolverError::SolutionTimeout { .. } => false,
-            // API errors are retryable based on error code
             CapsolverError::Api(error) => error.error_code.is_retryable(),
-            // Non-retryable errors
             CapsolverError::BuildHttpClient(_)
             | CapsolverError::ParseResponse(_)
             | CapsolverError::UnsupportedTask(_) => false,
@@ -49,13 +36,8 @@ impl RetryableError for CapsolverError {
 
     fn should_retry_operation(&self) -> bool {
         match self {
-            // HTTP errors - retry the operation
             CapsolverError::HttpRequest(_) => true,
-            // Timeouts - the task expired but a fresh attempt might work
-            CapsolverError::SolutionTimeout { .. } => true,
-            // API errors have their own logic
             CapsolverError::Api(error) => error.error_code.should_retry_operation(),
-            // Configuration errors - won't work until fixed
             CapsolverError::BuildHttpClient(_)
             | CapsolverError::ParseResponse(_)
             | CapsolverError::UnsupportedTask(_) => false,

@@ -1,10 +1,8 @@
 //! Error types for the RuCaptcha provider.
 
 use crate::errors::{RetryableError, UnsupportedTaskError};
-use crate::utils::types::TaskId;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::time::Duration;
 use thiserror::Error;
 
 /// RuCaptcha error type
@@ -24,12 +22,6 @@ pub enum RucaptchaError {
 
     #[error("{0}")]
     UnsupportedTask(#[source] UnsupportedTaskError),
-
-    #[error(
-        "Timeout waiting for captcha solution after {:.1}s; Task id: {task_id}",
-        timeout.as_secs_f64()
-    )]
-    SolutionTimeout { timeout: Duration, task_id: TaskId },
 }
 
 pub type Result<T> = std::result::Result<T, RucaptchaError>;
@@ -37,13 +29,8 @@ pub type Result<T> = std::result::Result<T, RucaptchaError>;
 impl RetryableError for RucaptchaError {
     fn is_retryable(&self) -> bool {
         match self {
-            // Retryable HTTP/network errors
             RucaptchaError::HttpRequest(_) => true,
-            // Timeouts are NOT retryable at task level (task already expired)
-            RucaptchaError::SolutionTimeout { .. } => false,
-            // API errors are retryable based on error code
             RucaptchaError::Api(error) => error.error_code.is_retryable(),
-            // Non-retryable errors
             RucaptchaError::BuildHttpClient(_)
             | RucaptchaError::ParseResponse(_)
             | RucaptchaError::UnsupportedTask(_) => false,
@@ -52,13 +39,8 @@ impl RetryableError for RucaptchaError {
 
     fn should_retry_operation(&self) -> bool {
         match self {
-            // HTTP errors - retry the operation
             RucaptchaError::HttpRequest(_) => true,
-            // Timeouts - the task expired but a fresh attempt might work
-            RucaptchaError::SolutionTimeout { .. } => true,
-            // API errors have their own logic
             RucaptchaError::Api(error) => error.error_code.should_retry_operation(),
-            // Configuration errors - won't work until fixed
             RucaptchaError::BuildHttpClient(_)
             | RucaptchaError::ParseResponse(_)
             | RucaptchaError::UnsupportedTask(_) => false,

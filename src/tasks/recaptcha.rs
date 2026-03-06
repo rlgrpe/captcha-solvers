@@ -297,8 +297,12 @@ impl ReCaptchaV3 {
     ///
     /// # Panics
     ///
-    /// Does not panic, but scores outside 0.0-1.0 may cause API errors.
+    /// Panics if `score` is not in the range `0.1..=0.9`.
     pub fn with_min_score(mut self, score: f32) -> Self {
+        assert!(
+            (0.1..=0.9).contains(&score),
+            "min_score must be between 0.1 and 0.9, got {score}"
+        );
         self.min_score = Some(score);
         self
     }
@@ -533,5 +537,17 @@ mod tests {
         assert_eq!(low.min_score(), Some(0.3));
         assert_eq!(medium.min_score(), Some(0.7));
         assert_eq!(high.min_score(), Some(0.9));
+    }
+
+    #[test]
+    #[should_panic(expected = "min_score must be between 0.1 and 0.9")]
+    fn test_recaptcha_v3_min_score_too_low() {
+        ReCaptchaV3::new("https://example.com", "key").with_min_score(0.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "min_score must be between 0.1 and 0.9")]
+    fn test_recaptcha_v3_min_score_too_high() {
+        ReCaptchaV3::new("https://example.com", "key").with_min_score(1.0);
     }
 }
