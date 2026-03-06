@@ -12,8 +12,10 @@
 //! | ReCaptcha V3 | [`ReCaptchaV3`](crate::ReCaptchaV3) | No |
 //! | ReCaptcha V3 Enterprise | [`ReCaptchaV3`](crate::ReCaptchaV3) with `.enterprise()` | No |
 //! | Cloudflare Turnstile | [`Turnstile`](crate::Turnstile) | No |
+//! | Image to Text | [`ImageToText`](crate::ImageToText) | No |
 //!
-//! **Note**: [`CloudflareChallenge`](crate::CloudflareChallenge) is not supported by RuCaptcha.
+//! **Note**: [`CloudflareChallenge`](crate::CloudflareChallenge), [`TurnstileChallenge`](crate::TurnstileChallenge),
+//! and [`TurnstileWaitRoom`](crate::TurnstileWaitRoom) are not supported by RuCaptcha.
 //!
 //! ## Quick Start
 //!
@@ -24,13 +26,13 @@
 //!
 //! // Create provider with API key
 //! let provider = RucaptchaProvider::new("your_api_key")?;
-//! let service = CaptchaSolverService::with_provider(provider);
+//! let service = CaptchaSolverService::new(provider);
 //!
 //! // Solve ReCaptcha V2 using shared task types
 //! let task = ReCaptchaV2::new("https://example.com", "site_key")
 //!     .invisible()
 //!     .enterprise();
-//! let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
+//! let solution = service.solve_captcha(task).await?;
 //! let token = solution.into_recaptcha().token();
 //! ```
 //!
@@ -83,6 +85,7 @@
 //!
 //! - **ReCaptcha V2/V3**: [`ReCaptchaSolution`] with `token()` method
 //! - **Turnstile**: [`TurnstileSolution`] with `token()` method
+//! - **Image to Text**: [`ImageToTextSolution`] with `text()` method
 //!
 //! ## Error Handling
 //!
@@ -114,7 +117,7 @@ pub use errors::{RucaptchaApiError, RucaptchaError, RucaptchaErrorCode};
 pub use provider::{DEFAULT_API_URL, RucaptchaProvider, RucaptchaProviderBuilder};
 
 // Solutions (public API)
-pub use types::{ReCaptchaSolution, RucaptchaSolution, TurnstileSolution};
+pub use types::{ImageToTextSolution, ReCaptchaSolution, RucaptchaSolution, TurnstileSolution};
 
 // Re-export proxy types for convenience (also available at crate root)
 pub use crate::utils::proxy::{ProxyConfig, ProxyType};

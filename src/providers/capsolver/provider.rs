@@ -46,14 +46,14 @@ const GET_TASK_RESULT_PATH: &str = "getTaskResult";
 ///
 /// // Create provider directly with API key
 /// let provider = CapsolverProvider::new("api_key")?;
-/// let service = CaptchaSolverService::with_provider(provider);
+/// let service = CaptchaSolverService::new(provider);
 ///
 /// // Use shared task types
 /// let task = ReCaptchaV2::new("https://example.com", "site_key")
 ///     .invisible()
 ///     .enterprise();
 ///
-/// let solution = service.solve_captcha(task, Duration::from_secs(120)).await?;
+/// let solution = service.solve_captcha(task).await?;
 /// println!("Token: {}", solution.into_recaptcha().token());
 /// ```
 #[derive(Clone)]

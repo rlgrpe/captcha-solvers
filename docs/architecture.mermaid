@@ -12,29 +12,43 @@ graph TB
         C --> E[ReCaptchaV3]
         C --> F[Turnstile]
         C --> G[CloudflareChallenge]
+        C --> TC[TurnstileChallenge]
+        C --> TW[TurnstileWaitRoom]
         C --> H[ImageToText]
     end
 
     subgraph "Provider Abstraction"
-        D & E & F & G & H --> I[Provider Trait]
+        D & E & F & G & TC & TW & H --> I[Provider Trait]
         I --> J[CaptchaRetryableProvider]
         J --> K{Provider Selection}
     end
 
     subgraph "Provider Implementations"
         K --> L[CapsolverProvider]
-        K --> M[RuCaptchaProvider]
+        K --> CM[CapmonsterProvider]
+        K --> M[RucaptchaProvider]
+    end
+
+    subgraph "Task Lifecycle"
+        L & CM & M --> CT[createTask]
+        CT --> |TaskCreationOutcome::Pending| PL[Poll Loop]
+        CT --> |TaskCreationOutcome::Ready| IM[Immediate Solution]
+        PL --> GTR[getTaskResult]
+        GTR --> |None| PL
+        GTR --> |Some solution| SOL[Solution]
+        IM --> SOL
     end
 
     subgraph "External Services"
         L --> N[Capsolver API]
+        CM --> CMA[CapMonster API]
         M --> O[RuCaptcha API]
     end
 
     subgraph "Configuration"
         P[ServiceConfig] --> B
         Q[RetryConfig] --> J
-        R[ProxyConfig] --> D & E & F & G
+        R[ProxyConfig] --> D & E & F & G & TC & TW
     end
 
     subgraph "Observability"
@@ -47,6 +61,10 @@ graph TB
     style B fill:#bbdefb
     style I fill:#c8e6c9
     style L fill:#fff9c4
+    style CM fill:#fff9c4
     style M fill:#fff9c4
     style N fill:#ffccbc
+    style CMA fill:#ffccbc
     style O fill:#ffccbc
+    style IM fill:#c8e6c9
+    style SOL fill:#c8e6c9

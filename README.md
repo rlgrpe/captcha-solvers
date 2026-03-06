@@ -40,6 +40,22 @@ A generic Rust library for solving captchas through various provider services.
 - Cloudflare Challenge (Capsolver only, requires proxy)
 - Image to Text (OCR recognition)
 
+### Provider Capability Matrix
+
+| Task Type | Capsolver | CapMonster | RuCaptcha | Notes |
+|-----------|:---------:|:----------:|:---------:|-------|
+| ReCaptchaV2 | Y | Y | Y | Enterprise variant requires proxy on Capsolver |
+| ReCaptchaV3 | Y | Y | Y | RuCaptcha defaults `min_score` to 0.9 if unset |
+| Turnstile | Y | Y | Y | Capsolver: proxyless only |
+| TurnstileChallenge | - | Y | - | Token and cf_clearance modes |
+| TurnstileWaitRoom | - | Y | - | Requires proxy |
+| CloudflareChallenge | Y | - | - | Requires proxy |
+| ImageToText | Y | Y | Y | Advanced OCR fields (case, numeric, etc.) only on RuCaptcha |
+
+> **Explicit validation**: Provider-specific support differences are validated at task creation
+> time. Unsupported task types or field combinations are rejected with a clear error
+> rather than silently degraded.
+
 ## Installation
 
 ```toml
