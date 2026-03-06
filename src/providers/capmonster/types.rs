@@ -1,7 +1,7 @@
 //! Task and solution types for the CapMonster Cloud API.
 
 use crate::errors::UnsupportedTaskError;
-use crate::utils::proxy::CapsolverProxyFields;
+use crate::utils::proxy::ApiProxyFields;
 use crate::utils::serde_helpers::{
     deserialize_string_or_number, serialize_string_as_number_if_possible,
 };
@@ -37,7 +37,7 @@ pub enum CapmonsterTask {
         #[serde(rename = "isInvisible", skip_serializing_if = "Option::is_none")]
         is_invisible: Option<bool>,
         #[serde(flatten, skip_serializing_if = "Option::is_none")]
-        proxy: Option<CapsolverProxyFields>,
+        proxy: Option<ApiProxyFields>,
     },
 
     // -------------------------------------------------------------------------
@@ -61,7 +61,7 @@ pub enum CapmonsterTask {
         #[serde(rename = "isInvisible", skip_serializing_if = "Option::is_none")]
         is_invisible: Option<bool>,
         #[serde(flatten, skip_serializing_if = "Option::is_none")]
-        proxy: Option<CapsolverProxyFields>,
+        proxy: Option<ApiProxyFields>,
     },
 
     // -------------------------------------------------------------------------
@@ -114,7 +114,7 @@ pub enum CapmonsterTask {
         #[serde(rename = "userAgent", skip_serializing_if = "Option::is_none")]
         user_agent: Option<String>,
         #[serde(flatten, skip_serializing_if = "Option::is_none")]
-        proxy: Option<CapsolverProxyFields>,
+        proxy: Option<ApiProxyFields>,
     },
 
     // -------------------------------------------------------------------------
@@ -286,7 +286,7 @@ pub(crate) struct GetTaskResultRequest<'a> {
 impl From<crate::tasks::ReCaptchaV2> for CapmonsterTask {
     fn from(task: crate::tasks::ReCaptchaV2) -> Self {
         let is_invisible = if task.is_invisible { Some(true) } else { None };
-        let proxy = task.proxy.map(|p| p.into_capsolver_fields());
+        let proxy = task.proxy.map(|p| p.into_api_proxy_fields());
 
         if task.is_enterprise {
             Self::RecaptchaV2EnterpriseTask {
@@ -367,7 +367,7 @@ impl From<crate::tasks::Turnstile> for CapmonsterTask {
             api_js_url: None,
             html_page_base64: None,
             user_agent: None,
-            proxy: task.proxy.map(|p| p.into_capsolver_fields()),
+            proxy: task.proxy.map(|p| p.into_api_proxy_fields()),
         }
     }
 }
@@ -386,7 +386,7 @@ impl From<crate::tasks::TurnstileChallenge> for CapmonsterTask {
             api_js_url: task.api_js_url,
             html_page_base64: task.html_page_base64,
             user_agent: Some(task.user_agent),
-            proxy: task.proxy.map(|p| p.into_capsolver_fields()),
+            proxy: task.proxy.map(|p| p.into_api_proxy_fields()),
         }
     }
 }
@@ -403,7 +403,7 @@ impl From<crate::tasks::TurnstileWaitRoom> for CapmonsterTask {
             api_js_url: None,
             html_page_base64: Some(task.html_page_base64),
             user_agent: Some(task.user_agent),
-            proxy: Some(task.proxy.into_capsolver_fields()),
+            proxy: Some(task.proxy.into_api_proxy_fields()),
         }
     }
 }

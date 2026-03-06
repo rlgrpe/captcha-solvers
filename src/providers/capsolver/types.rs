@@ -1,4 +1,4 @@
-use crate::utils::proxy::CapsolverProxyFields;
+use crate::utils::proxy::ApiProxyFields;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -48,7 +48,7 @@ pub enum CapsolverTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         #[serde(flatten)]
-        proxy: CapsolverProxyFields,
+        proxy: ApiProxyFields,
     },
 
     /// ReCaptcha V2 Enterprise using server's built-in proxy
@@ -81,7 +81,7 @@ pub enum CapsolverTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         #[serde(flatten)]
-        proxy: CapsolverProxyFields,
+        proxy: ApiProxyFields,
     },
 
     /// ReCaptcha V3 using server's built-in proxy
@@ -109,7 +109,7 @@ pub enum CapsolverTask {
         #[serde(rename = "apiDomain", skip_serializing_if = "Option::is_none")]
         api_domain: Option<String>,
         #[serde(flatten)]
-        proxy: CapsolverProxyFields,
+        proxy: ApiProxyFields,
     },
 
     /// ReCaptcha V3 Enterprise using server's built-in proxy
@@ -153,7 +153,7 @@ pub enum CapsolverTask {
         html: Option<String>,
         /// Proxy fields (static or sticky proxy, not rotating)
         #[serde(flatten)]
-        proxy: CapsolverProxyFields,
+        proxy: ApiProxyFields,
     },
 
     // -------------------------------------------------------------------------
@@ -389,7 +389,7 @@ impl TryFrom<crate::tasks::ReCaptchaV2> for CapsolverTask {
                 enterprise_payload: task.enterprise_payload,
                 is_invisible,
                 api_domain: task.api_domain,
-                proxy: proxy.into_capsolver_fields(),
+                proxy: proxy.into_api_proxy_fields(),
             }),
             // Enterprise without proxy
             (true, None) => Ok(Self::ReCaptchaV2EnterpriseTaskProxyLess {
@@ -429,7 +429,7 @@ impl From<crate::tasks::ReCaptchaV3> for CapsolverTask {
                 page_action: task.page_action,
                 enterprise_payload: task.enterprise_payload,
                 api_domain: task.api_domain,
-                proxy: proxy.into_capsolver_fields(),
+                proxy: proxy.into_api_proxy_fields(),
             },
             // Enterprise without proxy
             (true, None) => Self::ReCaptchaV3EnterpriseTaskProxyLess {
@@ -445,7 +445,7 @@ impl From<crate::tasks::ReCaptchaV3> for CapsolverTask {
                 website_key: task.website_key,
                 page_action: task.page_action,
                 api_domain: task.api_domain,
-                proxy: proxy.into_capsolver_fields(),
+                proxy: proxy.into_api_proxy_fields(),
             },
             // Standard without proxy
             (false, None) => Self::ReCaptchaV3TaskProxyLess {
@@ -500,7 +500,7 @@ impl From<crate::tasks::CloudflareChallenge> for CapsolverTask {
             website_url: task.website_url,
             user_agent: task.user_agent,
             html: task.html,
-            proxy: task.proxy.into_capsolver_fields(),
+            proxy: task.proxy.into_api_proxy_fields(),
         }
     }
 }

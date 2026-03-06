@@ -16,8 +16,8 @@ pub enum ProxyType {
 }
 
 impl ProxyType {
-    /// Get the string representation for Capsolver API (includes https)
-    pub fn as_capsolver_str(&self) -> &'static str {
+    /// Get the string representation for API providers (Capsolver, CapMonster)
+    pub fn as_api_str(&self) -> &'static str {
         match self {
             ProxyType::Http => "http",
             ProxyType::Https => "https",
@@ -36,17 +36,14 @@ impl ProxyType {
     }
 }
 
-/// Proxy fields for serialization into task payloads (Capsolver format)
+/// Proxy fields for serialization into API task payloads (Capsolver/CapMonster format).
 ///
 /// This struct can be flattened into task variants to avoid repeating
 /// the same 5 proxy fields in every variant.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CapsolverProxyFields {
-    #[serde(
-        rename = "proxyType",
-        serialize_with = "serialize_capsolver_proxy_type"
-    )]
+pub struct ApiProxyFields {
+    #[serde(rename = "proxyType", serialize_with = "serialize_api_proxy_type")]
     pub proxy_type: ProxyType,
     #[serde(rename = "proxyAddress")]
     pub proxy_address: String,
@@ -77,15 +74,12 @@ pub struct RucaptchaProxyFields {
     pub proxy_password: Option<String>,
 }
 
-/// Serialize ProxyType for Capsolver API
-pub fn serialize_capsolver_proxy_type<S>(
-    proxy_type: &ProxyType,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+/// Serialize ProxyType for API providers (Capsolver/CapMonster)
+pub fn serialize_api_proxy_type<S>(proxy_type: &ProxyType, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serializer.serialize_str(proxy_type.as_capsolver_str())
+    serializer.serialize_str(proxy_type.as_api_str())
 }
 
 /// Serialize ProxyType for RuCaptcha API
@@ -99,7 +93,7 @@ where
     serializer.serialize_str(proxy_type.as_rucaptcha_str())
 }
 
-impl From<ProxyConfig> for CapsolverProxyFields {
+impl From<ProxyConfig> for ApiProxyFields {
     fn from(config: ProxyConfig) -> Self {
         Self {
             proxy_type: config.proxy_type,
@@ -124,8 +118,8 @@ impl From<ProxyConfig> for RucaptchaProxyFields {
 }
 
 impl ProxyConfig {
-    /// Convert to Capsolver-compatible proxy fields for task serialization
-    pub fn into_capsolver_fields(self) -> CapsolverProxyFields {
+    /// Convert to API-compatible proxy fields (Capsolver/CapMonster format)
+    pub fn into_api_proxy_fields(self) -> ApiProxyFields {
         self.into()
     }
 
