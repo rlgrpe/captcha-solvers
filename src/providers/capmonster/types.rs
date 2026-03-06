@@ -629,6 +629,18 @@ mod tests {
     }
 
     #[test]
+    fn test_recaptcha_v3_rejects_enterprise_payload() {
+        use std::collections::HashMap;
+        let mut payload = HashMap::new();
+        payload.insert("s".to_string(), serde_json::json!("value"));
+        let task = ReCaptchaV3::new("https://example.com", "key").with_enterprise_payload(payload);
+        let result: Result<CapmonsterTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"enterprise_payload"));
+    }
+
+    #[test]
     fn test_image_to_text_rejects_ocr_fields() {
         let task = ImageToText::from_base64("data")
             .case_sensitive()

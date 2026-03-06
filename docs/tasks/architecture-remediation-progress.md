@@ -16,12 +16,13 @@
 - [x] RuCaptcha: document/decide implicit min_score=0.9 default (kept, documented)
 - [x] CapMonster: reject ReCaptchaV3 with proxy/api_domain/enterprise_payload
 - [x] CapMonster: reject ImageToText OCR fields (silently dropped)
-- [x] Add unit tests for all rejected combinations (9 new tests)
+- [x] Capsolver: reject ReCaptchaV3 with min_score (silently ignored by API)
+- [x] Add unit tests for all rejected combinations (10 new tests)
 
 ## Phase 3: Domain Invariants, Service Lifecycle Tests, and Retry Model
 - [x] Validate `ReCaptchaV3::with_min_score()` range (0.1..=0.9)
 - [x] Validate `ImageToText::with_numeric()` range (0..=4)
-- [x] Add service-level tests with mock provider (6 tests)
+- [x] Add service-level tests with mock provider (7 tests)
 - [x] Remove dead provider-side `SolutionTimeout` variants (all 3 providers)
 - [x] Decide on `should_retry_operation()` — kept (used in ServiceError + tracing)
 
@@ -34,7 +35,7 @@
 ## Phase 5: Final Cleanup and Release Readiness
 - [x] Run cargo fmt --check (clean)
 - [x] Run cargo clippy --all-features -- -D warnings (clean)
-- [x] Run cargo test --all-features (180 tests pass)
+- [x] Run cargo test --all-features (182 tests pass)
 - [x] Run cargo test --doc (23 pass)
 - [x] Verify examples compile
 - [x] Update task docs
@@ -43,7 +44,7 @@
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Unit tests | 160 | 180 |
+| Unit tests | 160 | 182 |
 | Silent field drops | ~15 | 0 |
 | Dead code variants | 3 (`SolutionTimeout`) | 0 |
 | Provider-leaking names | `CapsolverProxyFields` | `ApiProxyFields` |

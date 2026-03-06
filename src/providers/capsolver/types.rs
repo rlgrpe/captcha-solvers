@@ -419,41 +419,51 @@ impl TryFrom<crate::tasks::ReCaptchaV2> for CapsolverTask {
     }
 }
 
-impl From<crate::tasks::ReCaptchaV3> for CapsolverTask {
-    fn from(task: crate::tasks::ReCaptchaV3) -> Self {
+impl TryFrom<crate::tasks::ReCaptchaV3> for CapsolverTask {
+    type Error = crate::errors::UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::ReCaptchaV3) -> Result<Self, Self::Error> {
+        if task.min_score.is_some() {
+            return Err(crate::errors::UnsupportedTaskError::unsupported_fields(
+                "ReCaptchaV3",
+                "Capsolver",
+                vec!["min_score"],
+            ));
+        }
+
         match (task.is_enterprise, task.proxy) {
             // Enterprise with proxy
-            (true, Some(proxy)) => Self::ReCaptchaV3EnterpriseTask {
+            (true, Some(proxy)) => Ok(Self::ReCaptchaV3EnterpriseTask {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 enterprise_payload: task.enterprise_payload,
                 api_domain: task.api_domain,
                 proxy: proxy.into_api_proxy_fields(),
-            },
+            }),
             // Enterprise without proxy
-            (true, None) => Self::ReCaptchaV3EnterpriseTaskProxyLess {
+            (true, None) => Ok(Self::ReCaptchaV3EnterpriseTaskProxyLess {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 enterprise_payload: task.enterprise_payload,
                 api_domain: task.api_domain,
-            },
+            }),
             // Standard with proxy
-            (false, Some(proxy)) => Self::ReCaptchaV3Task {
+            (false, Some(proxy)) => Ok(Self::ReCaptchaV3Task {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 api_domain: task.api_domain,
                 proxy: proxy.into_api_proxy_fields(),
-            },
+            }),
             // Standard without proxy
-            (false, None) => Self::ReCaptchaV3TaskProxyLess {
+            (false, None) => Ok(Self::ReCaptchaV3TaskProxyLess {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
                 api_domain: task.api_domain,
-            },
+            }),
         }
     }
 }
@@ -556,7 +566,7 @@ impl TryFrom<crate::tasks::CaptchaTask> for CapsolverTask {
     fn try_from(task: crate::tasks::CaptchaTask) -> Result<Self, Self::Error> {
         match task {
             crate::tasks::CaptchaTask::ReCaptchaV2(t) => t.try_into(),
-            crate::tasks::CaptchaTask::ReCaptchaV3(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ReCaptchaV3(t) => t.try_into(),
             crate::tasks::CaptchaTask::Turnstile(t) => t.try_into(),
             crate::tasks::CaptchaTask::CloudflareChallenge(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::ImageToText(t) => t.try_into(),
@@ -606,7 +616,8 @@ mod tests {
     fn test_recaptcha_v3_with_action_serialization() {
         let task: CapsolverTask = ReCaptchaV3::new("https://example.com", "site-key")
             .with_action("submit")
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("ReCaptchaV3TaskProxyLess"));
         assert!(json.contains("pageAction"));
@@ -691,7 +702,7 @@ mod tests {
         let task: CapsolverTask = ReCaptchaV2::new("url", "key").try_into().unwrap();
         assert_eq!(task.to_string(), "ReCaptchaV2");
 
-        let task: CapsolverTask = ReCaptchaV3::new("url", "key").into();
+        let task: CapsolverTask = ReCaptchaV3::new("url", "key").try_into().unwrap();
         assert_eq!(task.to_string(), "ReCaptchaV3");
 
         let task: CapsolverTask = Turnstile::new("url", "key").try_into().unwrap();
@@ -706,8 +717,10 @@ mod tests {
     fn test_proxy_serialization() {
         let proxy = ProxyConfig::socks5("192.168.1.1", 1080).with_auth("user", "pass");
         let task: CapsolverTask = ReCaptchaV3::new("https://example.com", "key")
+            .enterprise()
             .with_proxy(proxy)
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("\"proxyType\":\"socks5\""));
         assert!(json.contains("\"proxyAddress\":\"192.168.1.1\""));
@@ -827,5 +840,14 @@ mod tests {
         let err = result.unwrap_err();
         assert!(err.unsupported_fields.contains(&"case_sensitive"));
         assert!(err.unsupported_fields.contains(&"numeric"));
+    }
+
+    #[test]
+    fn test_recaptcha_v3_rejects_min_score() {
+        let task = ReCaptchaV3::new("https://example.com", "key").with_min_score(0.9);
+        let result: Result<CapsolverTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"min_score"));
     }
 }

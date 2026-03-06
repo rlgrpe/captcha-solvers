@@ -45,7 +45,7 @@ A generic Rust library for solving captchas through various provider services.
 | Task Type | Capsolver | CapMonster | RuCaptcha | Notes |
 |-----------|:---------:|:----------:|:---------:|-------|
 | ReCaptchaV2 | Y | Y | Y | Enterprise variant requires proxy on Capsolver |
-| ReCaptchaV3 | Y | Y | Y | RuCaptcha defaults `min_score` to 0.9 if unset |
+| ReCaptchaV3 | Y | Y | Y | Capsolver ignores `min_score`; RuCaptcha defaults it to 0.9 |
 | Turnstile | Y | Y | Y | Capsolver: proxyless only |
 | TurnstileChallenge | - | Y | - | Token and cf_clearance modes |
 | TurnstileWaitRoom | - | Y | - | Requires proxy |
