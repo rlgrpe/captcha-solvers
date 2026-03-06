@@ -491,14 +491,22 @@ impl From<crate::tasks::ImageToText> for CapsolverTask {
     }
 }
 
-impl From<crate::tasks::CaptchaTask> for CapsolverTask {
-    fn from(task: crate::tasks::CaptchaTask) -> Self {
+impl TryFrom<crate::tasks::CaptchaTask> for CapsolverTask {
+    type Error = crate::errors::UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::CaptchaTask) -> Result<Self, Self::Error> {
         match task {
-            crate::tasks::CaptchaTask::ReCaptchaV2(t) => t.into(),
-            crate::tasks::CaptchaTask::ReCaptchaV3(t) => t.into(),
-            crate::tasks::CaptchaTask::Turnstile(t) => t.into(),
-            crate::tasks::CaptchaTask::CloudflareChallenge(t) => t.into(),
-            crate::tasks::CaptchaTask::ImageToText(t) => t.into(),
+            crate::tasks::CaptchaTask::ReCaptchaV2(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ReCaptchaV3(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::Turnstile(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::CloudflareChallenge(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ImageToText(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::TurnstileChallenge(_) => Err(
+                crate::errors::UnsupportedTaskError::new("TurnstileChallenge", "Capsolver"),
+            ),
+            crate::tasks::CaptchaTask::TurnstileWaitRoom(_) => Err(
+                crate::errors::UnsupportedTaskError::new("TurnstileWaitRoom", "Capsolver"),
+            ),
         }
     }
 }
@@ -598,7 +606,7 @@ mod tests {
             "userAgent": "Mozilla/5.0"
         }"#;
         let solution: TurnstileSolution = serde_json::from_str(json).unwrap();
-        assert_eq!(solution.token(), "turnstile-token");
+        assert_eq!(solution.token().unwrap(), "turnstile-token");
     }
 
     #[test]
@@ -609,7 +617,7 @@ mod tests {
             "userAgent": "Mozilla/5.0"
         }"#;
         let solution: CloudflareChallengeSolution = serde_json::from_str(json).unwrap();
-        assert_eq!(solution.token(), "cf-token");
+        assert_eq!(solution.token().unwrap(), "cf-token");
         assert_eq!(solution.cf_clearance(), Some("clearance-value"));
     }
 

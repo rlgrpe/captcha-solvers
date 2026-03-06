@@ -11,5 +11,8 @@ pub use traits::{Provider, TaskCreationOutcome};
 #[cfg(feature = "capsolver")]
 pub mod capsolver;
 
+#[cfg(feature = "capmonster")]
+pub mod capmonster;
+
 #[cfg(feature = "rucaptcha")]
 pub mod rucaptcha;

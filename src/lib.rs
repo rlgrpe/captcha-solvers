@@ -11,17 +11,20 @@
 //! | Provider | Feature | Website |
 //! |----------|---------|---------|
 //! | Capsolver | `capsolver` (default) | <https://capsolver.com> |
-//! | RuCaptcha | `rucaptcha` | <https://rucaptcha.com> |
+//! | CapMonster Cloud | `capmonster` (default) | <https://capmonster.cloud> |
+//! | RuCaptcha | `rucaptcha` (default) | <https://rucaptcha.com> |
 //!
 //! ## Supported Captcha Types
 //!
-//! | Type | Description |
-//! |------|-------------|
-//! | [`ReCaptchaV2`] | Standard and Enterprise, visible and invisible |
-//! | [`ReCaptchaV3`] | Score-based with action support |
-//! | [`Turnstile`] | Cloudflare Turnstile widget |
-//! | [`CloudflareChallenge`] | Full page challenge bypass (Capsolver only) |
-//! | [`ImageToText`] | Image captcha OCR recognition |
+//! | Type | Description | Providers |
+//! |------|-------------|-----------|
+//! | [`ReCaptchaV2`] | Standard and Enterprise, visible and invisible | All |
+//! | [`ReCaptchaV3`] | Score-based with action support | All |
+//! | [`Turnstile`] | Cloudflare Turnstile widget | All |
+//! | [`TurnstileChallenge`] | Turnstile with token/cf_clearance modes | CapMonster |
+//! | [`TurnstileWaitRoom`] | Cloudflare Waiting Room bypass | CapMonster |
+//! | [`CloudflareChallenge`] | Full page challenge bypass | Capsolver |
+//! | [`ImageToText`] | Image captcha OCR recognition | All |
 //!
 //! ## Quick Start
 //!
@@ -183,6 +186,52 @@
 //! let solution = service.solve_captcha(task).await?;
 //! ```
 //!
+//! ## CapMonster Cloud
+//!
+//! CapMonster Cloud supports Turnstile Challenge and Wait Room tasks in addition
+//! to the standard types:
+//!
+//! ```rust,ignore
+//! use captcha_solvers::capmonster::CapmonsterProvider;
+//! use captcha_solvers::{
+//!     CaptchaSolverService, CaptchaSolverServiceTrait,
+//!     TurnstileChallenge, TurnstileWaitRoom, ImageToText, ProxyConfig,
+//! };
+//!
+//! let provider = CapmonsterProvider::new("your_api_key")?;
+//! let service = CaptchaSolverService::new(provider);
+//!
+//! // Turnstile Challenge (token mode)
+//! let task = TurnstileChallenge::token(
+//!     "https://example.com", "site-key",
+//!     "managed", "cdata", "page-data", "Mozilla/5.0...",
+//! );
+//! let solution = service.solve_captcha(task).await?;
+//! let token = solution.into_turnstile().token().unwrap();
+//!
+//! // Turnstile Challenge (cf_clearance mode, requires proxy)
+//! let proxy = ProxyConfig::http("192.168.1.1", 8080);
+//! let task = TurnstileChallenge::cf_clearance(
+//!     "https://example.com", "site-key",
+//!     "base64-html", "Mozilla/5.0...", proxy,
+//! );
+//! let solution = service.solve_captcha(task).await?;
+//! let clearance = solution.into_turnstile().cf_clearance().unwrap();
+//!
+//! // Wait Room (requires proxy)
+//! let proxy = ProxyConfig::socks5("proxy.example.com", 1080);
+//! let task = TurnstileWaitRoom::new(
+//!     "https://example.com/wait", "site-key",
+//!     "base64-html", "Mozilla/5.0...", proxy,
+//! );
+//!
+//! // Image to Text with CapMonster module
+//! let task = ImageToText::from_base64("iVBORw0KGgoAAAANSUhEUgAA...")
+//!     .with_module("yandex");
+//! let solution = service.solve_captcha(task).await?;
+//! let text = solution.into_image_to_text().text();
+//! ```
+//!
 //! ## Provider Configuration
 //!
 //! ```rust,ignore
@@ -248,6 +297,14 @@ pub mod capsolver {
     pub use crate::providers::capsolver::*;
 }
 
+#[cfg(feature = "capmonster")]
+pub mod capmonster {
+    //! CapMonster Cloud provider implementation.
+    //!
+    //! See [`CapmonsterProvider`] for usage details.
+    pub use crate::providers::capmonster::*;
+}
+
 #[cfg(feature = "rucaptcha")]
 pub mod rucaptcha {
     //! RuCaptcha provider implementation.
@@ -282,6 +339,7 @@ pub use tokio_util::sync::CancellationToken;
 
 pub use tasks::{
     CaptchaTask, CloudflareChallenge, ImageToText, ReCaptchaV2, ReCaptchaV3, Turnstile,
+    TurnstileChallenge, TurnstileChallengeMode, TurnstileWaitRoom,
 };
 
 // ============================================================================

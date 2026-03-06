@@ -21,6 +21,13 @@ pub fn rucaptcha_api_key() -> Option<String> {
     env::var("RUCAPTCHA_API_KEY").ok()
 }
 
+/// Get CapMonster API key from environment
+#[allow(dead_code)]
+pub fn capmonster_api_key() -> Option<String> {
+    load_env();
+    env::var("CAPMONSTER_API_KEY").ok()
+}
+
 /// Get proxy configuration from environment
 ///
 /// Expected environment variables:

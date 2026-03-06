@@ -509,6 +509,12 @@ impl TryFrom<crate::tasks::CaptchaTask> for RucaptchaTask {
             crate::tasks::CaptchaTask::ReCaptchaV2(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::ReCaptchaV3(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::Turnstile(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::TurnstileChallenge(_) => Err(
+                crate::errors::UnsupportedTaskError::new("TurnstileChallenge", "RuCaptcha"),
+            ),
+            crate::tasks::CaptchaTask::TurnstileWaitRoom(_) => Err(
+                crate::errors::UnsupportedTaskError::new("TurnstileWaitRoom", "RuCaptcha"),
+            ),
             crate::tasks::CaptchaTask::CloudflareChallenge(t) => t.try_into(),
             crate::tasks::CaptchaTask::ImageToText(t) => Ok(t.into()),
         }
@@ -617,7 +623,7 @@ mod tests {
             "token": "turnstile-token"
         }"#;
         let solution: TurnstileSolution = serde_json::from_str(json).unwrap();
-        assert_eq!(solution.token(), "turnstile-token");
+        assert_eq!(solution.token().unwrap(), "turnstile-token");
     }
 
     #[test]

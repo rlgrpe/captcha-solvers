@@ -4,7 +4,8 @@
 //! They are designed to work with all supported providers while capturing
 //! provider-specific fields where applicable.
 
-use serde::Deserialize;
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer};
 use std::collections::HashMap;
 
 /// Marker trait for provider solution types.
@@ -84,32 +85,74 @@ impl ReCaptchaSolution {
 /// ```ignore
 /// let solution = service.solve_captcha(task, timeout).await?;
 /// let turnstile = solution.into_turnstile();
-/// println!("Token: {}", turnstile.token());
+/// if let Some(token) = turnstile.token() {
+///     println!("Token: {}", token);
+/// }
 ///
 /// // For Cloudflare Challenge, also use the cookies:
 /// if let Some(clearance) = turnstile.cf_clearance() {
 ///     println!("cf_clearance: {}", clearance);
 /// }
 /// ```
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct TurnstileSolution {
-    /// The solved token (Turnstile token or cf_clearance token)
-    pub token: String,
+    /// The solved token (Turnstile token).
+    pub token: Option<String>,
+
+    /// Top-level cf_clearance value returned by some providers.
+    pub cf_clearance: Option<String>,
 
     /// Cookies map containing cf_clearance (Cloudflare Challenge only)
-    #[serde(default)]
     pub cookies: Option<HashMap<String, String>>,
 
     /// User-Agent string used (must match your subsequent requests)
-    #[serde(default)]
     pub user_agent: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TurnstileSolutionRaw {
+    #[serde(default)]
+    token: Option<String>,
+    #[serde(default, rename = "cf_clearance")]
+    cf_clearance: Option<String>,
+    #[serde(default)]
+    cookies: Option<HashMap<String, String>>,
+    #[serde(default)]
+    user_agent: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for TurnstileSolution {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = TurnstileSolutionRaw::deserialize(deserializer)?;
+        let has_cookie_clearance = raw
+            .cookies
+            .as_ref()
+            .and_then(|cookies| cookies.get("cf_clearance"))
+            .is_some();
+
+        if raw.token.is_none() && raw.cf_clearance.is_none() && !has_cookie_clearance {
+            return Err(D::Error::custom(
+                "TurnstileSolution must contain token or cf_clearance",
+            ));
+        }
+
+        Ok(Self {
+            token: raw.token,
+            cf_clearance: raw.cf_clearance,
+            cookies: raw.cookies,
+            user_agent: raw.user_agent,
+        })
+    }
+}
+
 impl TurnstileSolution {
-    /// Get the token
-    pub fn token(&self) -> &str {
-        &self.token
+    /// Get the token if available.
+    pub fn token(&self) -> Option<&str> {
+        self.token.as_deref()
     }
 
     /// Get the cf_clearance cookie value (Cloudflare Challenge only)
@@ -117,9 +160,11 @@ impl TurnstileSolution {
     /// This cookie must be included in subsequent requests to bypass
     /// the Cloudflare protection.
     pub fn cf_clearance(&self) -> Option<&str> {
-        self.cookies
-            .as_ref()
-            .and_then(|c| c.get("cf_clearance").map(|s| s.as_str()))
+        self.cf_clearance.as_deref().or_else(|| {
+            self.cookies
+                .as_ref()
+                .and_then(|c| c.get("cf_clearance").map(|s| s.as_str()))
+        })
     }
 
     /// Get all cookies (Cloudflare Challenge only)
@@ -199,7 +244,7 @@ mod tests {
     fn test_turnstile_solution_deserialization() {
         let json = r#"{"token": "turnstile-token", "userAgent": "Mozilla/5.0"}"#;
         let solution: TurnstileSolution = serde_json::from_str(json).unwrap();
-        assert_eq!(solution.token(), "turnstile-token");
+        assert_eq!(solution.token().unwrap(), "turnstile-token");
         assert_eq!(solution.user_agent.as_deref(), Some("Mozilla/5.0"));
     }
 
@@ -211,8 +256,26 @@ mod tests {
             "userAgent": "Mozilla/5.0"
         }"#;
         let solution: CloudflareChallengeSolution = serde_json::from_str(json).unwrap();
-        assert_eq!(solution.token(), "cf-token");
+        assert_eq!(solution.token().unwrap(), "cf-token");
         assert_eq!(solution.cf_clearance(), Some("clearance-value"));
+    }
+
+    #[test]
+    fn test_cloudflare_solution_with_top_level_clearance() {
+        let json = r#"{
+            "cf_clearance": "clearance-value",
+            "userAgent": "Mozilla/5.0"
+        }"#;
+        let solution: CloudflareChallengeSolution = serde_json::from_str(json).unwrap();
+        assert_eq!(solution.token(), None);
+        assert_eq!(solution.cf_clearance(), Some("clearance-value"));
+    }
+
+    #[test]
+    fn test_turnstile_solution_without_token_or_clearance_fails() {
+        let json = r#"{"userAgent":"Mozilla/5.0"}"#;
+        let result: Result<TurnstileSolution, _> = serde_json::from_str(json);
+        assert!(result.is_err());
     }
 
     #[test]

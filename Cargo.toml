@@ -6,8 +6,9 @@ description = "Generic captcha solving library with provider abstraction"
 license = "MIT"
 
 [features]
-default = ["capsolver", "rucaptcha", "tracing", "native-tls"]
+default = ["capsolver", "capmonster", "rucaptcha", "tracing", "native-tls"]
 capsolver = []
+capmonster = []
 rucaptcha = []
 # Enable tracing instrumentation
 tracing = ["dep:tracing", "dep:tracing-opentelemetry", "dep:opentelemetry"]
