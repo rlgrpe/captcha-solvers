@@ -133,28 +133,28 @@ use std::time::Duration;
 
 // Method 1: Using the service builder
 let service = CaptchaSolverService::builder(provider)
-.timeout(Duration::from_secs(90))
-.poll_interval(Duration::from_secs(4))
-.build();
+    .timeout(Duration::from_secs(90))
+    .poll_interval(Duration::from_secs(4))
+    .build();
 
 // Method 2: Using config builder directly
 let config = CaptchaSolverServiceConfig::builder()
-.timeout(Duration::from_secs(180))
-.poll_interval(Duration::from_secs(5))
-.build();
+    .timeout(Duration::from_secs(180))
+    .poll_interval(Duration::from_secs(5))
+    .build();
 
 let service = CaptchaSolverService::with_config(provider, config);
 
 // Method 3: Config with validation
 let config_result = CaptchaSolverServiceConfig::builder()
-.timeout(Duration::from_secs(60))
-.poll_interval(Duration::from_secs(2))
-.try_build(); // Returns Result with validation
+    .timeout(Duration::from_secs(60))
+    .poll_interval(Duration::from_secs(2))
+    .try_build(); // Returns Result with validation
 
 // Method 4: Modify existing config with fluent methods
-let config = CaptchaSolverServiceConfig::default ()
-.with_timeout(Duration::from_secs(150))
-.with_poll_interval(Duration::from_secs(3));
+let config = CaptchaSolverServiceConfig::default()
+    .with_timeout(Duration::from_secs(150))
+    .with_poll_interval(Duration::from_secs(3));
 ```
 
 ## Cancellation Support
@@ -177,31 +177,31 @@ let cancel_token = CancellationToken::new();
 let token_clone = cancel_token.clone();
 
 // Spawn a task that will cancel after 10 seconds
-tokio::spawn( async move {
-tokio::time::sleep(Duration::from_secs(10)).await;
-token_clone.cancel();
+tokio::spawn(async move {
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    token_clone.cancel();
 });
 
 // Use the cancellable version
 match service.solve_captcha_cancellable(task, cancel_token).await {
-Ok(solution) => {
-println ! ("Solved! Token: {}", solution.into_recaptcha().token());
-}
-Err(e) if e.is_cancelled() => {
-println ! ("Operation was cancelled!");
-if let Some(elapsed) = e.elapsed() {
-println ! ("  Elapsed time: {:?}", elapsed);
-}
-if let Some(polls) = e.poll_count() {
-println ! ("  Poll attempts: {}", polls);
-}
-}
-Err(e) if e.is_timeout() => {
-println ! ("Operation timed out!");
-}
-Err(e) => {
-eprintln ! ("Error: {}", e);
-}
+    Ok(solution) => {
+        println!("Solved! Token: {}", solution.into_recaptcha().token());
+    }
+    Err(e) if e.is_cancelled() => {
+        println!("Operation was cancelled!");
+        if let Some(elapsed) = e.elapsed() {
+            println!("  Elapsed time: {:?}", elapsed);
+        }
+        if let Some(polls) = e.poll_count() {
+            println!("  Poll attempts: {}", polls);
+        }
+    }
+    Err(e) if e.is_timeout() => {
+        println!("Operation timed out!");
+    }
+    Err(e) => {
+        eprintln!("Error: {}", e);
+    }
 }
 ```
 
@@ -318,7 +318,7 @@ let clearance = solution.into_turnstile().cf_clearance().unwrap();
 use captcha_solvers::ImageToText;
 
 // From raw bytes (automatically base64-encoded)
-let image_bytes = std::fs::read("captcha.png") ?;
+let image_bytes = std::fs::read("captcha.png")?;
 let task = ImageToText::from_bytes(image_bytes);
 
 // From pre-encoded base64 string
@@ -326,15 +326,15 @@ let task = ImageToText::from_base64("iVBORw0KGgoAAAANSUhEUgAA...");
 
 // With options (for RuCaptcha)
 let task = ImageToText::from_base64("base64data")
-.case_sensitive()      // Answer is case-sensitive
-.numbers_only()        // Answer contains only numbers
-.with_min_length(4)    // Minimum 4 characters
-.with_max_length(8)    // Maximum 8 characters
-.with_comment("Enter red text only");  // Instruction for workers
+    .case_sensitive()      // Answer is case-sensitive
+    .numbers_only()        // Answer contains only numbers
+    .with_min_length(4)    // Minimum 4 characters
+    .with_max_length(8)    // Maximum 8 characters
+    .with_comment("Enter red text only");  // Instruction for workers
 
 // With module (Capsolver: "common"/"number", CapMonster: "yandex"/etc.)
 let task = ImageToText::from_base64("base64data")
-.with_module("common");
+    .with_module("common");
 
 let solution = service.solve_captcha(task).await?;
 let text = solution.into_image_to_text().text();
@@ -367,17 +367,17 @@ let base_provider = CapsolverProvider::new("api_key")?;
 let retry_config = RetryConfig::default()
     .with_max_retries(5)
     .with_min_delay(Duration::from_millis(500))
-.with_max_delay(Duration::from_secs(30))
-.with_factor(2.0);
+    .with_max_delay(Duration::from_secs(30))
+    .with_factor(2.0);
 
 // Wrap provider with retry logic and add a callback for retry notifications
 let provider = CaptchaRetryableProvider::with_config(base_provider, retry_config)
-.with_on_retry( | error, duration| {
-eprintln ! (
-"Retry triggered: will retry after {:?} due to error: {}",
-duration, error
-);
-});
+    .with_on_retry(|error, duration| {
+        eprintln!(
+            "Retry triggered: will retry after {:?} due to error: {}",
+            duration, error
+        );
+    });
 
 let service = CaptchaSolverService::new(provider);
 ```
