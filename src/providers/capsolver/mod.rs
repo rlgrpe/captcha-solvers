@@ -23,7 +23,6 @@
 //! ```rust,ignore
 //! use captcha_solvers::capsolver::CapsolverProvider;
 //! use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
-//! use std::time::Duration;
 //!
 //! // Create provider with API key
 //! let provider = CapsolverProvider::new("your_api_key")?;

@@ -22,7 +22,6 @@
 //! ```rust,ignore
 //! use captcha_solvers::rucaptcha::RucaptchaProvider;
 //! use captcha_solvers::{CaptchaSolverService, CaptchaSolverServiceTrait, ReCaptchaV2};
-//! use std::time::Duration;
 //!
 //! // Create provider with API key
 //! let provider = RucaptchaProvider::new("your_api_key")?;

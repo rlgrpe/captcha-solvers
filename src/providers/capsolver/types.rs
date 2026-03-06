@@ -404,7 +404,7 @@ impl TryFrom<crate::tasks::ReCaptchaV2> for CapsolverTask {
             (false, Some(_)) => Err(crate::errors::UnsupportedTaskError::unsupported_fields(
                 "ReCaptchaV2",
                 "Capsolver",
-                vec!["proxy (non-enterprise)"],
+                vec!["proxy"],
             )),
             // Standard without proxy
             (false, None) => Ok(Self::ReCaptchaV2TaskProxyLess {

@@ -45,6 +45,10 @@ impl UnsupportedTaskError {
         provider: &'static str,
         fields: Vec<&'static str>,
     ) -> Self {
+        debug_assert!(
+            !fields.is_empty(),
+            "use UnsupportedTaskError::new() for whole-task unsupported"
+        );
         Self {
             task_type,
             provider,

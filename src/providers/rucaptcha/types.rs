@@ -359,8 +359,29 @@ pub(crate) struct GetTaskResultRequest<'a> {
 // From implementations for shared task types
 // ============================================================================
 
-impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
-    fn from(task: crate::tasks::ReCaptchaV2) -> Self {
+impl TryFrom<crate::tasks::ReCaptchaV2> for RucaptchaTask {
+    type Error = crate::errors::UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::ReCaptchaV2) -> Result<Self, Self::Error> {
+        let mut unsupported = Vec::new();
+        if task.page_action.is_some() {
+            unsupported.push("page_action");
+        }
+        if task.is_enterprise {
+            if task.recaptcha_data_s_value.is_some() {
+                unsupported.push("recaptcha_data_s_value");
+            }
+        } else if task.enterprise_payload.is_some() {
+            unsupported.push("enterprise_payload");
+        }
+        if !unsupported.is_empty() {
+            return Err(crate::errors::UnsupportedTaskError::unsupported_fields(
+                "ReCaptchaV2",
+                "RuCaptcha",
+                unsupported,
+            ));
+        }
+
         let is_invisible = if task.is_invisible { Some(true) } else { None };
         let enterprise_payload = task
             .enterprise_payload
@@ -368,7 +389,7 @@ impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
 
         match (task.is_enterprise, task.proxy) {
             // Enterprise with proxy
-            (true, Some(proxy)) => Self::RecaptchaV2EnterpriseTask {
+            (true, Some(proxy)) => Ok(Self::RecaptchaV2EnterpriseTask {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 enterprise_payload,
@@ -377,9 +398,9 @@ impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
                 cookies: task.cookies,
                 api_domain: task.api_domain,
                 proxy: proxy.into_rucaptcha_fields(),
-            },
+            }),
             // Enterprise without proxy
-            (true, None) => Self::RecaptchaV2EnterpriseTaskProxyless {
+            (true, None) => Ok(Self::RecaptchaV2EnterpriseTaskProxyless {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 enterprise_payload,
@@ -387,9 +408,9 @@ impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
                 user_agent: task.user_agent,
                 cookies: task.cookies,
                 api_domain: task.api_domain,
-            },
+            }),
             // Standard with proxy
-            (false, Some(proxy)) => Self::RecaptchaV2Task {
+            (false, Some(proxy)) => Ok(Self::RecaptchaV2Task {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 recaptcha_data_s_value: task.recaptcha_data_s_value,
@@ -398,9 +419,9 @@ impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
                 cookies: task.cookies,
                 api_domain: task.api_domain,
                 proxy: proxy.into_rucaptcha_fields(),
-            },
+            }),
             // Standard without proxy
-            (false, None) => Self::RecaptchaV2TaskProxyless {
+            (false, None) => Ok(Self::RecaptchaV2TaskProxyless {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 recaptcha_data_s_value: task.recaptcha_data_s_value,
@@ -408,7 +429,7 @@ impl From<crate::tasks::ReCaptchaV2> for RucaptchaTask {
                 user_agent: task.user_agent,
                 cookies: task.cookies,
                 api_domain: task.api_domain,
-            },
+            }),
         }
     }
 }
@@ -523,7 +544,7 @@ impl TryFrom<crate::tasks::CaptchaTask> for RucaptchaTask {
 
     fn try_from(task: crate::tasks::CaptchaTask) -> Result<Self, Self::Error> {
         match task {
-            crate::tasks::CaptchaTask::ReCaptchaV2(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ReCaptchaV2(t) => t.try_into(),
             crate::tasks::CaptchaTask::ReCaptchaV3(t) => t.try_into(),
             crate::tasks::CaptchaTask::Turnstile(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::TurnstileChallenge(_) => Err(
@@ -550,7 +571,9 @@ mod tests {
 
     #[test]
     fn test_recaptcha_v2_serialization() {
-        let task: RucaptchaTask = ReCaptchaV2::new("https://example.com", "site-key").into();
+        let task: RucaptchaTask = ReCaptchaV2::new("https://example.com", "site-key")
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("RecaptchaV2TaskProxyless"));
         assert!(json.contains("websiteURL"));
@@ -561,7 +584,8 @@ mod tests {
     fn test_recaptcha_v2_invisible_serialization() {
         let task: RucaptchaTask = ReCaptchaV2::new("https://example.com", "site-key")
             .invisible()
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("isInvisible"));
         assert!(json.contains("true"));
@@ -572,7 +596,8 @@ mod tests {
         let proxy = ProxyConfig::http("192.168.1.1", 8080).with_auth("user", "pass");
         let task: RucaptchaTask = ReCaptchaV2::new("https://example.com", "site-key")
             .with_proxy(proxy)
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("RecaptchaV2Task"));
         assert!(json.contains("proxyType"));
@@ -580,6 +605,41 @@ mod tests {
         assert!(json.contains("proxyPort"));
         assert!(json.contains("proxyLogin"));
         assert!(json.contains("proxyPassword"));
+    }
+
+    #[test]
+    fn test_recaptcha_v2_rejects_page_action() {
+        let task = ReCaptchaV2::new("https://example.com", "key").with_action("verify");
+        let result: Result<RucaptchaTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"page_action"));
+    }
+
+    #[test]
+    fn test_recaptcha_v2_rejects_enterprise_payload_on_non_enterprise() {
+        use std::collections::HashMap;
+        let mut payload = HashMap::new();
+        payload.insert("s".to_string(), serde_json::json!("value"));
+        let task = ReCaptchaV2::new("https://example.com", "key").with_enterprise_payload(payload);
+        // with_enterprise_payload sets is_enterprise=true, so force it back to non-enterprise
+        let mut task = task;
+        task.is_enterprise = false;
+        let result: Result<RucaptchaTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"enterprise_payload"));
+    }
+
+    #[test]
+    fn test_recaptcha_v2_rejects_data_s_on_enterprise() {
+        let task = ReCaptchaV2::new("https://example.com", "key")
+            .enterprise()
+            .with_data_s_value("token");
+        let result: Result<RucaptchaTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"recaptcha_data_s_value"));
     }
 
     #[test]
@@ -647,7 +707,7 @@ mod tests {
 
     #[test]
     fn test_task_display() {
-        let task: RucaptchaTask = ReCaptchaV2::new("url", "key").into();
+        let task: RucaptchaTask = ReCaptchaV2::new("url", "key").try_into().unwrap();
         assert_eq!(task.to_string(), "ReCaptchaV2");
 
         let task: RucaptchaTask = ReCaptchaV3::new("url", "key").try_into().unwrap();
@@ -718,7 +778,7 @@ mod tests {
     #[test]
     fn test_from_shared_recaptcha_v2() {
         let task = ReCaptchaV2::new("https://example.com", "key");
-        let rucaptcha_task: RucaptchaTask = task.into();
+        let rucaptcha_task: RucaptchaTask = task.try_into().unwrap();
         let json = serde_json::to_string(&rucaptcha_task).unwrap();
         assert!(json.contains("RecaptchaV2TaskProxyless"));
     }
@@ -727,7 +787,7 @@ mod tests {
     fn test_from_shared_recaptcha_v2_with_proxy() {
         let proxy = ProxyConfig::http("192.168.1.1", 8080);
         let task = ReCaptchaV2::new("https://example.com", "key").with_proxy(proxy);
-        let rucaptcha_task: RucaptchaTask = task.into();
+        let rucaptcha_task: RucaptchaTask = task.try_into().unwrap();
         let json = serde_json::to_string(&rucaptcha_task).unwrap();
         assert!(json.contains("RecaptchaV2Task"));
         assert!(json.contains("proxyAddress"));

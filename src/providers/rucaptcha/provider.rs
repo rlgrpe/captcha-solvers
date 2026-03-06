@@ -42,7 +42,6 @@ const GET_TASK_RESULT_PATH: &str = "getTaskResult";
 ///     ReCaptchaV2, Turnstile,
 ///     rucaptcha::RucaptchaProvider,
 /// };
-/// use std::time::Duration;
 ///
 /// // Create provider directly with API key
 /// let provider = RucaptchaProvider::new("api_key")?;

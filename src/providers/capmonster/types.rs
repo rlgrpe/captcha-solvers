@@ -283,13 +283,27 @@ pub(crate) struct GetTaskResultRequest<'a> {
 // From/TryFrom implementations for shared task types
 // ============================================================================
 
-impl From<crate::tasks::ReCaptchaV2> for CapmonsterTask {
-    fn from(task: crate::tasks::ReCaptchaV2) -> Self {
+impl TryFrom<crate::tasks::ReCaptchaV2> for CapmonsterTask {
+    type Error = UnsupportedTaskError;
+
+    fn try_from(task: crate::tasks::ReCaptchaV2) -> Result<Self, Self::Error> {
         let is_invisible = if task.is_invisible { Some(true) } else { None };
         let proxy = task.proxy.map(|p| p.into_api_proxy_fields());
 
         if task.is_enterprise {
-            Self::RecaptchaV2EnterpriseTask {
+            let mut unsupported = Vec::new();
+            if task.recaptcha_data_s_value.is_some() {
+                unsupported.push("recaptcha_data_s_value");
+            }
+            if !unsupported.is_empty() {
+                return Err(UnsupportedTaskError::unsupported_fields(
+                    "ReCaptchaV2",
+                    "CapMonster",
+                    unsupported,
+                ));
+            }
+
+            Ok(Self::RecaptchaV2EnterpriseTask {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 page_action: task.page_action,
@@ -299,9 +313,27 @@ impl From<crate::tasks::ReCaptchaV2> for CapmonsterTask {
                 cookies: task.cookies,
                 is_invisible,
                 proxy,
-            }
+            })
         } else {
-            Self::RecaptchaV2Task {
+            let mut unsupported = Vec::new();
+            if task.page_action.is_some() {
+                unsupported.push("page_action");
+            }
+            if task.api_domain.is_some() {
+                unsupported.push("api_domain");
+            }
+            if task.enterprise_payload.is_some() {
+                unsupported.push("enterprise_payload");
+            }
+            if !unsupported.is_empty() {
+                return Err(UnsupportedTaskError::unsupported_fields(
+                    "ReCaptchaV2",
+                    "CapMonster",
+                    unsupported,
+                ));
+            }
+
+            Ok(Self::RecaptchaV2Task {
                 website_url: task.website_url,
                 website_key: task.website_key,
                 recaptcha_data_s_value: task.recaptcha_data_s_value,
@@ -309,7 +341,7 @@ impl From<crate::tasks::ReCaptchaV2> for CapmonsterTask {
                 cookies: task.cookies,
                 is_invisible,
                 proxy,
-            }
+            })
         }
     }
 }
@@ -457,7 +489,7 @@ impl TryFrom<crate::tasks::CaptchaTask> for CapmonsterTask {
 
     fn try_from(task: crate::tasks::CaptchaTask) -> Result<Self, Self::Error> {
         match task {
-            crate::tasks::CaptchaTask::ReCaptchaV2(t) => Ok(t.into()),
+            crate::tasks::CaptchaTask::ReCaptchaV2(t) => t.try_into(),
             crate::tasks::CaptchaTask::ReCaptchaV3(t) => t.try_into(),
             crate::tasks::CaptchaTask::Turnstile(t) => Ok(t.into()),
             crate::tasks::CaptchaTask::TurnstileChallenge(t) => Ok(t.into()),
@@ -485,7 +517,9 @@ mod tests {
 
     #[test]
     fn test_recaptcha_v2_serialization() {
-        let task: CapmonsterTask = ReCaptchaV2::new("https://example.com", "site-key").into();
+        let task: CapmonsterTask = ReCaptchaV2::new("https://example.com", "site-key")
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("RecaptchaV2Task"));
         assert!(json.contains("websiteURL"));
@@ -496,9 +530,33 @@ mod tests {
     fn test_recaptcha_v2_enterprise_serialization() {
         let task: CapmonsterTask = ReCaptchaV2::new("https://example.com", "site-key")
             .enterprise()
-            .into();
+            .try_into()
+            .unwrap();
         let json = serde_json::to_string(&task).unwrap();
         assert!(json.contains("RecaptchaV2EnterpriseTask"));
+    }
+
+    #[test]
+    fn test_recaptcha_v2_rejects_enterprise_fields_on_non_enterprise() {
+        let task = ReCaptchaV2::new("https://example.com", "key")
+            .with_action("verify")
+            .with_api_domain("recaptcha.net");
+        let result: Result<CapmonsterTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"page_action"));
+        assert!(err.unsupported_fields.contains(&"api_domain"));
+    }
+
+    #[test]
+    fn test_recaptcha_v2_rejects_data_s_on_enterprise() {
+        let task = ReCaptchaV2::new("https://example.com", "key")
+            .enterprise()
+            .with_data_s_value("token");
+        let result: Result<CapmonsterTask, _> = task.try_into();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.unsupported_fields.contains(&"recaptcha_data_s_value"));
     }
 
     #[test]

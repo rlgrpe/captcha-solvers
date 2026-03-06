@@ -1,7 +1,7 @@
 //! ReCaptcha task types with builder pattern.
 //!
 //! This module provides provider-agnostic ReCaptcha task definitions that can be
-//! converted to any supported provider's format using `TryFrom`/`TryInto`.
+//! converted to provider-specific formats. Unsupported combinations are rejected via `TryFrom`.
 
 use crate::utils::proxy::ProxyConfig;
 use std::collections::HashMap;
@@ -9,8 +9,8 @@ use std::collections::HashMap;
 /// ReCaptcha V2 task with fluent builder pattern.
 ///
 /// Use this type to create ReCaptcha V2 solving requests that work with any provider.
-/// The task can be converted to provider-specific formats using `try_into()`.
-/// Unsupported field combinations are rejected with [`UnsupportedTaskError`](crate::UnsupportedTaskError).
+/// The task is converted to provider-specific formats. Some providers reject unsupported
+/// field combinations with [`UnsupportedTaskError`](crate::UnsupportedTaskError).
 ///
 /// # Examples
 ///
