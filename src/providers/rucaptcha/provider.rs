@@ -273,8 +273,12 @@ impl RucaptchaProvider {
 
     #[cfg(feature = "tracing")]
     fn record_error(e: &RucaptchaError) {
-        Span::current().set_status(Status::error(ErrorChain(e).to_string()));
-        tracing::error!(error = %ErrorChain(e), "Rucaptcha operation failed");
+        if crate::errors::RetryableError::is_retryable(e) {
+            tracing::warn!(error = %ErrorChain(e), "Rucaptcha operation failed with retryable error");
+        } else {
+            Span::current().set_status(Status::error(ErrorChain(e).to_string()));
+            tracing::error!(error = %ErrorChain(e), "Rucaptcha operation failed");
+        }
     }
 }
 

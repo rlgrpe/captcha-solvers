@@ -283,8 +283,12 @@ impl CapsolverProvider {
     // Error handling helper for setting span status on error paths
     #[cfg(feature = "tracing")]
     fn record_error(e: &CapsolverError) {
-        Span::current().set_status(Status::error(ErrorChain(e).to_string()));
-        tracing::error!(error = %ErrorChain(e), "Capsolver operation failed");
+        if crate::errors::RetryableError::is_retryable(e) {
+            tracing::warn!(error = %ErrorChain(e), "Capsolver operation failed with retryable error");
+        } else {
+            Span::current().set_status(Status::error(ErrorChain(e).to_string()));
+            tracing::error!(error = %ErrorChain(e), "Capsolver operation failed");
+        }
     }
 }
 

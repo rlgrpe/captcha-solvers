@@ -274,8 +274,12 @@ impl CapmonsterProvider {
 
     #[cfg(feature = "tracing")]
     fn record_error(e: &CapmonsterError) {
-        Span::current().set_status(Status::error(ErrorChain(e).to_string()));
-        tracing::error!(error = %ErrorChain(e), "Capmonster operation failed");
+        if crate::errors::RetryableError::is_retryable(e) {
+            tracing::warn!(error = %ErrorChain(e), "Capmonster operation failed with retryable error");
+        } else {
+            Span::current().set_status(Status::error(ErrorChain(e).to_string()));
+            tracing::error!(error = %ErrorChain(e), "Capmonster operation failed");
+        }
     }
 }
 
