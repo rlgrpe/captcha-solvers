@@ -4,6 +4,7 @@
 //! with any provider that supports proxy-based captcha solving.
 
 use serde::{Deserialize, Serialize, Serializer};
+use std::fmt;
 
 /// Proxy type for tasks requiring custom proxy
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -40,7 +41,7 @@ impl ProxyType {
 ///
 /// This struct can be flattened into task variants to avoid repeating
 /// the same 5 proxy fields in every variant.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiProxyFields {
     #[serde(rename = "proxyType", serialize_with = "serialize_api_proxy_type")]
@@ -56,7 +57,7 @@ pub struct ApiProxyFields {
 }
 
 /// Proxy fields for serialization into task payloads (RuCaptcha format)
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RucaptchaProxyFields {
     #[serde(
@@ -72,6 +73,42 @@ pub struct RucaptchaProxyFields {
     pub proxy_login: Option<String>,
     #[serde(rename = "proxyPassword", skip_serializing_if = "Option::is_none")]
     pub proxy_password: Option<String>,
+}
+
+impl fmt::Debug for ApiProxyFields {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ApiProxyFields")
+            .field("proxy_type", &self.proxy_type)
+            .field("proxy_address", &self.proxy_address)
+            .field("proxy_port", &self.proxy_port)
+            .field(
+                "proxy_login",
+                &self.proxy_login.as_deref().map(|_| "[REDACTED]"),
+            )
+            .field(
+                "proxy_password",
+                &self.proxy_password.as_deref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
+}
+
+impl fmt::Debug for RucaptchaProxyFields {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RucaptchaProxyFields")
+            .field("proxy_type", &self.proxy_type)
+            .field("proxy_address", &self.proxy_address)
+            .field("proxy_port", &self.proxy_port)
+            .field(
+                "proxy_login",
+                &self.proxy_login.as_deref().map(|_| "[REDACTED]"),
+            )
+            .field(
+                "proxy_password",
+                &self.proxy_password.as_deref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 /// Serialize ProxyType for API providers (Capsolver/CapMonster)
@@ -147,13 +184,25 @@ impl ProxyConfig {
 /// let proxy_str = proxy.to_string_format();
 /// // Result: "socks5:proxy.example.com:1080:user:pass"
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ProxyConfig {
     pub proxy_type: ProxyType,
     pub address: String,
     pub port: u16,
     pub login: Option<String>,
     pub password: Option<String>,
+}
+
+impl fmt::Debug for ProxyConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ProxyConfig")
+            .field("proxy_type", &self.proxy_type)
+            .field("address", &self.address)
+            .field("port", &self.port)
+            .field("login", &self.login.as_deref().map(|_| "[REDACTED]"))
+            .field("password", &self.password.as_deref().map(|_| "[REDACTED]"))
+            .finish()
+    }
 }
 
 impl ProxyConfig {

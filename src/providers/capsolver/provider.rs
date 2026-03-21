@@ -16,6 +16,8 @@ use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
 #[cfg(feature = "tracing")]
+use crate::utils::error_chain::ErrorChain;
+#[cfg(feature = "tracing")]
 use opentelemetry::trace::Status;
 #[cfg(feature = "tracing")]
 use tracing::Span;
@@ -215,7 +217,12 @@ impl CapsolverProvider {
     /// (e.g., for ImageToText tasks), otherwise returns `TaskCreationOutcome::Pending`.
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "create_task_internal", target = "captcha.capsolver", skip_all)
+        tracing::instrument(
+            name = "create_task_internal",
+            target = "captcha.capsolver",
+            skip_all,
+            fields(task_id = tracing::field::Empty)
+        )
     )]
     async fn create_task_internal(
         &self,
@@ -233,11 +240,7 @@ impl CapsolverProvider {
         let task_id = TaskId::from(data.task_id);
 
         #[cfg(feature = "tracing")]
-        {
-            Span::current()
-                .record("task_id", task_id.as_ref())
-                .set_status(Status::Ok);
-        }
+        Span::current().record("task_id", task_id.as_ref());
 
         // Check if solution was returned immediately (e.g., ImageToText)
         match data.solution {
@@ -277,6 +280,12 @@ impl CapsolverProvider {
 
         Ok(data.solution)
     }
+    // Error handling helper for setting span status on error paths
+    #[cfg(feature = "tracing")]
+    fn record_error(e: &CapsolverError) {
+        Span::current().set_status(Status::error(ErrorChain(e).to_string()));
+        tracing::error!(error = %ErrorChain(e), "Capsolver operation failed");
+    }
 }
 
 impl Provider for CapsolverProvider {
@@ -285,13 +294,28 @@ impl Provider for CapsolverProvider {
 
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "create_task", target = "captcha.capsolver", skip_all)
+        tracing::instrument(
+            name = "create_task",
+            target = "captcha.capsolver",
+            skip_all,
+            fields(captcha.task_type)
+        )
     )]
     async fn create_task(&self, task: CaptchaTask) -> Result<TaskCreationOutcome<Self::Solution>> {
-        // Convert unified task to provider-specific format
+        #[cfg(feature = "tracing")]
+        Span::current().record("captcha.task_type", task.to_string());
+
         let internal_task: CapsolverTask =
             task.try_into().map_err(CapsolverError::UnsupportedTask)?;
-        self.create_task_internal(internal_task).await
+        let result = self.create_task_internal(internal_task).await;
+
+        #[cfg(feature = "tracing")]
+        match &result {
+            Ok(_) => Span::current().set_status(Status::Ok),
+            Err(e) => Self::record_error(e),
+        }
+
+        result
     }
 
     #[cfg_attr(
@@ -304,6 +328,13 @@ impl Provider for CapsolverProvider {
         )
     )]
     async fn get_task_result(&self, task_id: &TaskId) -> Result<Option<Self::Solution>> {
-        self.get_task_result_internal(task_id).await
+        let result = self.get_task_result_internal(task_id).await;
+
+        #[cfg(feature = "tracing")]
+        if let Err(ref e) = result {
+            Self::record_error(e);
+        }
+
+        result
     }
 }

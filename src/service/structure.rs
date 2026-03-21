@@ -11,7 +11,13 @@ use std::time::Instant;
 use tokio_util::sync::CancellationToken;
 
 #[cfg(feature = "tracing")]
+use crate::utils::error_chain::ErrorChain;
+#[cfg(feature = "tracing")]
+use opentelemetry::trace::Status;
+#[cfg(feature = "tracing")]
 use tracing::{Span, debug, error, info, warn};
+#[cfg(feature = "tracing")]
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[cfg(feature = "metrics")]
 use opentelemetry::{
@@ -297,6 +303,11 @@ where
 
         // Create the task
         let outcome = self.provider.create_task(task).await.map_err(|e| {
+            #[cfg(feature = "tracing")]
+            {
+                Span::current().set_status(Status::error(ErrorChain(&e).to_string()));
+                error!(error = %ErrorChain(&e), "Failed to create captcha task");
+            }
             #[cfg(feature = "metrics")]
             ServiceMetrics::global().errors.add(
                 1,
@@ -321,6 +332,7 @@ where
                 #[cfg(feature = "tracing")]
                 {
                     Span::current().record("captcha.task_id", task_id.as_ref());
+                    Span::current().set_status(Status::Ok);
                     info!(
                         task_id = %task_id,
                         task_type = %task_type,
@@ -377,12 +389,15 @@ where
                 let elapsed = start.elapsed();
 
                 #[cfg(feature = "tracing")]
-                info!(
-                    task_id = %task_id,
-                    elapsed_secs = %elapsed.as_secs_f64(),
-                    poll_count = %poll_count,
-                    "Cancellation requested"
-                );
+                {
+                    Span::current().set_status(Status::error("cancelled"));
+                    info!(
+                        task_id = %task_id,
+                        elapsed_secs = %elapsed.as_secs_f64(),
+                        poll_count = %poll_count,
+                        "Cancellation requested"
+                    );
+                }
 
                 #[cfg(feature = "metrics")]
                 {
@@ -412,13 +427,16 @@ where
             let elapsed = start.elapsed();
             if elapsed >= timeout {
                 #[cfg(feature = "tracing")]
-                warn!(
-                    task_id = %task_id,
-                    timeout_secs = %timeout.as_secs_f64(),
-                    elapsed_secs = %elapsed.as_secs_f64(),
-                    poll_count = %poll_count,
-                    "Captcha solution timeout"
-                );
+                {
+                    Span::current().set_status(Status::error("timeout"));
+                    warn!(
+                        task_id = %task_id,
+                        timeout_secs = %timeout.as_secs_f64(),
+                        elapsed_secs = %elapsed.as_secs_f64(),
+                        poll_count = %poll_count,
+                        "Captcha solution timeout"
+                    );
+                }
 
                 #[cfg(feature = "metrics")]
                 {
@@ -451,12 +469,15 @@ where
                     let elapsed = start.elapsed();
 
                     #[cfg(feature = "tracing")]
-                    info!(
-                        task_id = %task_id,
-                        elapsed_secs = %elapsed.as_secs_f64(),
-                        poll_count = %poll_count,
-                        "Captcha solved successfully"
-                    );
+                    {
+                        Span::current().set_status(Status::Ok);
+                        info!(
+                            task_id = %task_id,
+                            elapsed_secs = %elapsed.as_secs_f64(),
+                            poll_count = %poll_count,
+                            "Captcha solved successfully"
+                        );
+                    }
 
                     #[cfg(feature = "metrics")]
                     {
@@ -496,15 +517,18 @@ where
                     let elapsed = start.elapsed();
 
                     #[cfg(feature = "tracing")]
-                    error!(
-                        task_id = %task_id,
-                        error = %e,
-                        is_retryable = %e.is_retryable(),
-                        should_retry_operation = %e.should_retry_operation(),
-                        elapsed_secs = %elapsed.as_secs_f64(),
-                        poll_count = %poll_count,
-                        "Permanent error while polling for solution"
-                    );
+                    {
+                        Span::current().set_status(Status::error(ErrorChain(&e).to_string()));
+                        error!(
+                            task_id = %task_id,
+                            error = %ErrorChain(&e),
+                            is_retryable = %e.is_retryable(),
+                            should_retry_operation = %e.should_retry_operation(),
+                            elapsed_secs = %elapsed.as_secs_f64(),
+                            poll_count = %poll_count,
+                            "Permanent error while polling for solution"
+                        );
+                    }
 
                     #[cfg(feature = "metrics")]
                     {
@@ -538,7 +562,7 @@ where
                     #[cfg(feature = "tracing")]
                     warn!(
                         task_id = %task_id,
-                        error = %_e,
+                        error = %ErrorChain(&_e),
                         poll_count = %poll_count,
                         "Transient error while polling, will retry"
                     );

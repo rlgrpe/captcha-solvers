@@ -16,6 +16,8 @@ use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
 #[cfg(feature = "tracing")]
+use crate::utils::error_chain::ErrorChain;
+#[cfg(feature = "tracing")]
 use opentelemetry::trace::Status;
 #[cfg(feature = "tracing")]
 use tracing::Span;
@@ -212,7 +214,12 @@ impl RucaptchaProvider {
     /// Create a captcha solving task (internal)
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "create_task_internal", target = "captcha.rucaptcha", skip_all)
+        tracing::instrument(
+            name = "create_task_internal",
+            target = "captcha.rucaptcha",
+            skip_all,
+            fields(task_id = tracing::field::Empty)
+        )
     )]
     async fn create_task_internal(&self, task: RucaptchaTask) -> Result<TaskId> {
         let request = CreateTaskRequest {
@@ -227,11 +234,7 @@ impl RucaptchaProvider {
         let task_id = TaskId::from(data.task_id);
 
         #[cfg(feature = "tracing")]
-        {
-            Span::current()
-                .record("task_id", task_id.as_ref())
-                .set_status(Status::Ok);
-        }
+        Span::current().record("task_id", task_id.as_ref());
 
         Ok(task_id)
     }
@@ -267,6 +270,12 @@ impl RucaptchaProvider {
 
         Ok(data.solution)
     }
+
+    #[cfg(feature = "tracing")]
+    fn record_error(e: &RucaptchaError) {
+        Span::current().set_status(Status::error(ErrorChain(e).to_string()));
+        tracing::error!(error = %ErrorChain(e), "Rucaptcha operation failed");
+    }
 }
 
 impl Provider for RucaptchaProvider {
@@ -275,16 +284,28 @@ impl Provider for RucaptchaProvider {
 
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "create_task", target = "captcha.rucaptcha", skip_all)
+        tracing::instrument(
+            name = "create_task",
+            target = "captcha.rucaptcha",
+            skip_all,
+            fields(captcha.task_type)
+        )
     )]
     async fn create_task(&self, task: CaptchaTask) -> Result<TaskCreationOutcome<Self::Solution>> {
-        // Convert unified task to provider-specific format
-        // CloudflareChallenge is not supported by RuCaptcha
+        #[cfg(feature = "tracing")]
+        Span::current().record("captcha.task_type", task.to_string());
+
         let internal_task: RucaptchaTask =
             task.try_into().map_err(RucaptchaError::UnsupportedTask)?;
-        let task_id = self.create_task_internal(internal_task).await?;
-        // RuCaptcha always requires polling - no immediate solutions
-        Ok(TaskCreationOutcome::Pending(task_id))
+        let result = self.create_task_internal(internal_task).await;
+
+        #[cfg(feature = "tracing")]
+        match &result {
+            Ok(_) => Span::current().set_status(Status::Ok),
+            Err(e) => Self::record_error(e),
+        }
+
+        result.map(TaskCreationOutcome::Pending)
     }
 
     #[cfg_attr(
@@ -297,6 +318,13 @@ impl Provider for RucaptchaProvider {
         )
     )]
     async fn get_task_result(&self, task_id: &TaskId) -> Result<Option<Self::Solution>> {
-        self.get_task_result_internal(task_id).await
+        let result = self.get_task_result_internal(task_id).await;
+
+        #[cfg(feature = "tracing")]
+        if let Err(ref e) = result {
+            Self::record_error(e);
+        }
+
+        result
     }
 }

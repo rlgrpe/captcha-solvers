@@ -2,6 +2,7 @@
 //!
 //! This module contains utility types and helpers used across the library.
 
+pub(crate) mod error_chain;
 pub mod proxy;
 pub mod response;
 pub mod retry;

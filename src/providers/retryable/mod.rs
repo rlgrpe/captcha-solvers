@@ -11,6 +11,7 @@ use crate::utils::types::TaskId;
 use backon::Retryable;
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 #[cfg(feature = "tracing")]
@@ -173,6 +174,8 @@ where
         let inner = Arc::clone(&self.inner);
         let task_for_notify = task.clone();
         let on_retry = self.on_retry.clone();
+        let max_retries = self.retry_config.max_retries;
+        let attempt = Arc::new(AtomicU32::new(0));
         (|| {
             let inner = Arc::clone(&inner);
             let task = task.clone();
@@ -181,7 +184,8 @@ where
         .retry(self.retry_config.build_strategy())
         .when(|err: &Self::Error| err.is_retryable())
         .notify(move |err, duration| {
-            // Call user callback if set
+            let attempt_num = attempt.fetch_add(1, Ordering::Relaxed) + 1;
+
             if let Some(ref callback) = on_retry {
                 callback(err, duration);
             }
@@ -190,6 +194,8 @@ where
             debug!(
                 error = ?err,
                 captcha.task_type = %task_for_notify,
+                attempt = attempt_num,
+                max_retries = max_retries,
                 retry_after_secs = %duration.as_secs_f64(),
                 "Retrying create_task after transient error"
             );
@@ -213,6 +219,8 @@ where
         let task_id_owned = task_id.clone();
         let task_id_for_notify = task_id.clone();
         let on_retry = self.on_retry.clone();
+        let max_retries = self.retry_config.max_retries;
+        let attempt = Arc::new(AtomicU32::new(0));
         (|| {
             let inner = Arc::clone(&inner);
             let task_id = task_id_owned.clone();
@@ -221,7 +229,8 @@ where
         .retry(self.retry_config.build_strategy())
         .when(|err: &Self::Error| err.is_retryable())
         .notify(move |err, duration| {
-            // Call user callback if set
+            let attempt_num = attempt.fetch_add(1, Ordering::Relaxed) + 1;
+
             if let Some(ref callback) = on_retry {
                 callback(err, duration);
             }
@@ -230,6 +239,8 @@ where
             debug!(
                 error = ?err,
                 captcha.task_id = %task_id_for_notify,
+                attempt = attempt_num,
+                max_retries = max_retries,
                 retry_after_secs = %duration.as_secs_f64(),
                 "Retrying get_task_result after transient error"
             );
