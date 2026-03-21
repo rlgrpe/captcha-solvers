@@ -83,11 +83,11 @@ impl fmt::Debug for ApiProxyFields {
             .field("proxy_port", &self.proxy_port)
             .field(
                 "proxy_login",
-                &self.proxy_login.as_deref().map(|_| "[REDACTED]"),
+                &self.proxy_login.as_deref().map(|_| super::REDACTED),
             )
             .field(
                 "proxy_password",
-                &self.proxy_password.as_deref().map(|_| "[REDACTED]"),
+                &self.proxy_password.as_deref().map(|_| super::REDACTED),
             )
             .finish()
     }
@@ -101,11 +101,11 @@ impl fmt::Debug for RucaptchaProxyFields {
             .field("proxy_port", &self.proxy_port)
             .field(
                 "proxy_login",
-                &self.proxy_login.as_deref().map(|_| "[REDACTED]"),
+                &self.proxy_login.as_deref().map(|_| super::REDACTED),
             )
             .field(
                 "proxy_password",
-                &self.proxy_password.as_deref().map(|_| "[REDACTED]"),
+                &self.proxy_password.as_deref().map(|_| super::REDACTED),
             )
             .finish()
     }
@@ -199,8 +199,11 @@ impl fmt::Debug for ProxyConfig {
             .field("proxy_type", &self.proxy_type)
             .field("address", &self.address)
             .field("port", &self.port)
-            .field("login", &self.login.as_deref().map(|_| "[REDACTED]"))
-            .field("password", &self.password.as_deref().map(|_| "[REDACTED]"))
+            .field("login", &self.login.as_deref().map(|_| super::REDACTED))
+            .field(
+                "password",
+                &self.password.as_deref().map(|_| super::REDACTED),
+            )
             .finish()
     }
 }

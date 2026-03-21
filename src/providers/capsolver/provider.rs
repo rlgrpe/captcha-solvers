@@ -18,11 +18,9 @@ use std::fmt::Debug;
 #[cfg(feature = "tracing")]
 use crate::utils::error_chain::ErrorChain;
 #[cfg(feature = "tracing")]
-use opentelemetry::trace::Status;
+use crate::utils::span_status::{set_span_error, set_span_ok};
 #[cfg(feature = "tracing")]
 use tracing::Span;
-#[cfg(feature = "tracing")]
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Default Capsolver API URL
 pub const DEFAULT_API_URL: &str = "https://api.capsolver.com";
@@ -68,7 +66,7 @@ impl Debug for CapsolverProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CapsolverProvider")
             .field("url", &self.url)
-            .field("api_key", &"[REDACTED]")
+            .field("api_key", &crate::utils::REDACTED)
             .finish()
     }
 }
@@ -275,18 +273,18 @@ impl CapsolverProvider {
 
         #[cfg(feature = "tracing")]
         if data.solution.is_some() {
-            Span::current().set_status(Status::Ok);
+            set_span_ok();
         }
 
         Ok(data.solution)
     }
-    // Error handling helper for setting span status on error paths
+
     #[cfg(feature = "tracing")]
     fn record_error(e: &CapsolverError) {
         if crate::errors::RetryableError::is_retryable(e) {
-            tracing::warn!(error = %ErrorChain(e), "Capsolver operation failed with retryable error");
+            tracing::warn!(error = %ErrorChain(e), "Capsolver transient error");
         } else {
-            Span::current().set_status(Status::error(ErrorChain(e).to_string()));
+            set_span_error(&ErrorChain(e));
             tracing::error!(error = %ErrorChain(e), "Capsolver operation failed");
         }
     }
@@ -315,7 +313,7 @@ impl Provider for CapsolverProvider {
 
         #[cfg(feature = "tracing")]
         match &result {
-            Ok(_) => Span::current().set_status(Status::Ok),
+            Ok(_) => set_span_ok(),
             Err(e) => Self::record_error(e),
         }
 

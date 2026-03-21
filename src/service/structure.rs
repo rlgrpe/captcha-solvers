@@ -13,11 +13,9 @@ use tokio_util::sync::CancellationToken;
 #[cfg(feature = "tracing")]
 use crate::utils::error_chain::ErrorChain;
 #[cfg(feature = "tracing")]
-use opentelemetry::trace::Status;
+use crate::utils::span_status::{set_span_error, set_span_ok};
 #[cfg(feature = "tracing")]
 use tracing::{Span, debug, error, info, warn};
-#[cfg(feature = "tracing")]
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[cfg(feature = "metrics")]
 use opentelemetry::{
@@ -55,23 +53,23 @@ impl ServiceMetrics {
             let meter = global::meter("captcha_solvers");
             Self {
                 tasks_created: meter
-                    .u64_counter("captcha_solvers.tasks_created")
+                    .u64_counter("captcha_solvers.tasks_created_total")
                     .with_description("Number of captcha tasks created")
                     .build(),
                 solutions_received: meter
-                    .u64_counter("captcha_solvers.solutions_received")
+                    .u64_counter("captcha_solvers.solutions_received_total")
                     .with_description("Number of captcha solutions successfully received")
                     .build(),
                 timeouts: meter
-                    .u64_counter("captcha_solvers.timeouts")
+                    .u64_counter("captcha_solvers.timeouts_total")
                     .with_description("Number of captcha solve timeouts")
                     .build(),
                 cancellations: meter
-                    .u64_counter("captcha_solvers.cancellations")
+                    .u64_counter("captcha_solvers.cancellations_total")
                     .with_description("Number of cancelled captcha operations")
                     .build(),
                 errors: meter
-                    .u64_counter("captcha_solvers.errors")
+                    .u64_counter("captcha_solvers.errors_total")
                     .with_description("Number of captcha solve errors")
                     .build(),
                 solve_time: meter
@@ -257,7 +255,8 @@ where
             fields(
                 captcha.task_type,
                 captcha.task_id,
-                captcha.provider = std::any::type_name::<P>()
+                captcha.provider = std::any::type_name::<P>(),
+                outcome = tracing::field::Empty
             )
         )
     )]
@@ -277,7 +276,8 @@ where
             fields(
                 captcha.task_type,
                 captcha.task_id,
-                captcha.provider = std::any::type_name::<P>()
+                captcha.provider = std::any::type_name::<P>(),
+                outcome = tracing::field::Empty
             )
         )
     )]
@@ -305,7 +305,8 @@ where
         let outcome = self.provider.create_task(task).await.map_err(|e| {
             #[cfg(feature = "tracing")]
             {
-                Span::current().set_status(Status::error(ErrorChain(&e).to_string()));
+                Span::current().record("outcome", "error");
+                set_span_error(&ErrorChain(&e));
                 error!(error = %ErrorChain(&e), "Failed to create captcha task");
             }
             #[cfg(feature = "metrics")]
@@ -332,7 +333,8 @@ where
                 #[cfg(feature = "tracing")]
                 {
                     Span::current().record("captcha.task_id", task_id.as_ref());
-                    Span::current().set_status(Status::Ok);
+                    Span::current().record("outcome", "success");
+                    set_span_ok();
                     info!(
                         task_id = %task_id,
                         task_type = %task_type,
@@ -390,7 +392,8 @@ where
 
                 #[cfg(feature = "tracing")]
                 {
-                    Span::current().set_status(Status::error("cancelled"));
+                    Span::current().record("outcome", "cancelled");
+                    set_span_error(&"cancelled");
                     info!(
                         task_id = %task_id,
                         elapsed_secs = %elapsed.as_secs_f64(),
@@ -428,7 +431,8 @@ where
             if elapsed >= timeout {
                 #[cfg(feature = "tracing")]
                 {
-                    Span::current().set_status(Status::error("timeout"));
+                    Span::current().record("outcome", "timeout");
+                    set_span_error(&"timeout");
                     warn!(
                         task_id = %task_id,
                         timeout_secs = %timeout.as_secs_f64(),
@@ -470,7 +474,8 @@ where
 
                     #[cfg(feature = "tracing")]
                     {
-                        Span::current().set_status(Status::Ok);
+                        Span::current().record("outcome", "success");
+                        set_span_ok();
                         info!(
                             task_id = %task_id,
                             elapsed_secs = %elapsed.as_secs_f64(),
@@ -518,7 +523,8 @@ where
 
                     #[cfg(feature = "tracing")]
                     {
-                        Span::current().set_status(Status::error(ErrorChain(&e).to_string()));
+                        Span::current().record("outcome", "error");
+                        set_span_error(&ErrorChain(&e));
                         error!(
                             task_id = %task_id,
                             error = %ErrorChain(&e),

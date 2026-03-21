@@ -7,4 +7,8 @@ pub mod proxy;
 pub mod response;
 pub mod retry;
 pub mod serde_helpers;
+#[cfg(feature = "tracing")]
+pub(crate) mod span_status;
 pub mod types;
+
+pub(crate) const REDACTED: &str = "[REDACTED]";

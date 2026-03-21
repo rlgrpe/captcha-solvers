@@ -18,11 +18,9 @@ use std::fmt::Debug;
 #[cfg(feature = "tracing")]
 use crate::utils::error_chain::ErrorChain;
 #[cfg(feature = "tracing")]
-use opentelemetry::trace::Status;
+use crate::utils::span_status::{set_span_error, set_span_ok};
 #[cfg(feature = "tracing")]
 use tracing::Span;
-#[cfg(feature = "tracing")]
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Default CapMonster API URL.
 pub const DEFAULT_API_URL: &str = "https://api.capmonster.cloud";
@@ -43,7 +41,7 @@ impl Debug for CapmonsterProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CapmonsterProvider")
             .field("url", &self.url)
-            .field("api_key", &"[REDACTED]")
+            .field("api_key", &crate::utils::REDACTED)
             .finish()
     }
 }
@@ -266,7 +264,7 @@ impl CapmonsterProvider {
 
         #[cfg(feature = "tracing")]
         if data.solution.is_some() {
-            Span::current().set_status(Status::Ok);
+            set_span_ok();
         }
 
         Ok(data.solution)
@@ -275,9 +273,9 @@ impl CapmonsterProvider {
     #[cfg(feature = "tracing")]
     fn record_error(e: &CapmonsterError) {
         if crate::errors::RetryableError::is_retryable(e) {
-            tracing::warn!(error = %ErrorChain(e), "Capmonster operation failed with retryable error");
+            tracing::warn!(error = %ErrorChain(e), "Capmonster transient error");
         } else {
-            Span::current().set_status(Status::error(ErrorChain(e).to_string()));
+            set_span_error(&ErrorChain(e));
             tracing::error!(error = %ErrorChain(e), "Capmonster operation failed");
         }
     }
@@ -306,7 +304,7 @@ impl Provider for CapmonsterProvider {
 
         #[cfg(feature = "tracing")]
         match &result {
-            Ok(_) => Span::current().set_status(Status::Ok),
+            Ok(_) => set_span_ok(),
             Err(e) => Self::record_error(e),
         }
 
