@@ -15,6 +15,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 #[cfg(feature = "tracing")]
+use crate::utils::error_chain::ErrorChain;
+#[cfg(feature = "tracing")]
 use crate::utils::span_status::{set_span_error, set_span_ok};
 #[cfg(feature = "tracing")]
 use tracing::debug;
@@ -209,7 +211,7 @@ where
         })
         .inspect_err(|e| {
             #[cfg(feature = "tracing")]
-            set_span_error(e);
+            set_span_error(&ErrorChain(e));
         })
     }
 
@@ -262,7 +264,7 @@ where
         })
         .inspect_err(|e| {
             #[cfg(feature = "tracing")]
-            set_span_error(e);
+            set_span_error(&ErrorChain(e));
         })
     }
 }

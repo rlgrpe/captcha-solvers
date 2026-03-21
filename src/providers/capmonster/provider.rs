@@ -16,9 +16,7 @@ use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
 #[cfg(feature = "tracing")]
-use crate::utils::error_chain::ErrorChain;
-#[cfg(feature = "tracing")]
-use crate::utils::span_status::{set_span_error, set_span_ok};
+use crate::utils::span_status::{record_error, set_span_ok};
 #[cfg(feature = "tracing")]
 use tracing::Span;
 
@@ -269,16 +267,6 @@ impl CapmonsterProvider {
 
         Ok(data.solution)
     }
-
-    #[cfg(feature = "tracing")]
-    fn record_error(e: &CapmonsterError) {
-        if crate::errors::RetryableError::is_retryable(e) {
-            tracing::warn!(error = %ErrorChain(e), "Capmonster transient error");
-        } else {
-            set_span_error(&ErrorChain(e));
-            tracing::error!(error = %ErrorChain(e), "Capmonster operation failed");
-        }
-    }
 }
 
 impl Provider for CapmonsterProvider {
@@ -305,7 +293,7 @@ impl Provider for CapmonsterProvider {
         #[cfg(feature = "tracing")]
         match &result {
             Ok(_) => set_span_ok(),
-            Err(e) => Self::record_error(e),
+            Err(e) => record_error(e, "Capmonster"),
         }
 
         result.map(TaskCreationOutcome::Pending)
@@ -325,7 +313,7 @@ impl Provider for CapmonsterProvider {
 
         #[cfg(feature = "tracing")]
         if let Err(ref e) = result {
-            Self::record_error(e);
+            record_error(e, "Capmonster");
         }
 
         result
