@@ -246,7 +246,8 @@ src/
 ├── providers/
 │   ├── mod.rs                  # Re-exports
 │   ├── traits.rs               # Provider trait, TaskCreationOutcome
-│   ├── retryable/              # CaptchaRetryableProvider wrapper
+│   ├── retryable/
+│   │   └── mod.rs              # CaptchaRetryableProvider wrapper
 │   ├── capsolver/              # Capsolver implementation
 │   │   ├── mod.rs
 │   │   ├── provider.rs         # CapsolverProvider + Provider impl
@@ -254,19 +255,24 @@ src/
 │   │   ├── errors.rs           # CapsolverError + RetryableError impl
 │   │   ├── response.rs         # API response parsing
 │   │   └── tests.rs            # wiremock-based tests
-│   ├── capmonster/             # (same structure)
-│   └── rucaptcha/              # (same structure)
+│   ├── capmonster/             # CapMonster Cloud implementation (same structure)
+│   └── rucaptcha/              # RuCaptcha implementation (same structure)
 ├── service/
+│   ├── mod.rs                  # Module re-exports
 │   ├── structure.rs            # CaptchaSolverService + polling loop
 │   ├── traits.rs               # CaptchaSolverServiceTrait
 │   ├── config.rs               # Config + presets (fast/balanced/patient)
 │   ├── errors.rs               # ServiceError
 │   └── tests.rs                # MockProvider-based tests
 └── utils/
+    ├── mod.rs                  # Module re-exports
     ├── proxy.rs                # ProxyConfig, ApiProxyFields, RucaptchaProxyFields
     ├── retry.rs                # RetryConfig (backon wrapper)
     ├── types.rs                # TaskId newtype
-    └── serde_helpers.rs        # String/number deserialization helpers
+    ├── serde_helpers.rs        # String/number deserialization helpers
+    ├── response.rs             # Shared HTTP response helpers
+    ├── error_chain.rs          # Error chain formatting utilities
+    └── span_status.rs          # OpenTelemetry span status helpers
 ```
 
 ## Feature Flags
