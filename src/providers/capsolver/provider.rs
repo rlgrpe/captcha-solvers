@@ -215,7 +215,7 @@ impl CapsolverProvider {
     /// (e.g., for ImageToText tasks), otherwise returns `TaskCreationOutcome::Pending`.
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "CapsolverProvider::create_task_internal", skip_all)
+        tracing::instrument(name = "create_task_internal", target = "captcha.capsolver", skip_all)
     )]
     async fn create_task_internal(
         &self,
@@ -250,7 +250,8 @@ impl CapsolverProvider {
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(
-            name = "CapsolverProvider::get_task_result_internal",
+            name = "get_task_result_internal",
+            target = "captcha.capsolver",
             skip_all,
             fields(task_id = %task_id)
         )
@@ -284,7 +285,7 @@ impl Provider for CapsolverProvider {
 
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "CapsolverProvider::create_task", skip_all)
+        tracing::instrument(name = "create_task", target = "captcha.capsolver", skip_all)
     )]
     async fn create_task(&self, task: CaptchaTask) -> Result<TaskCreationOutcome<Self::Solution>> {
         // Convert unified task to provider-specific format
@@ -296,7 +297,8 @@ impl Provider for CapsolverProvider {
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(
-            name = "CapsolverProvider::get_task_result",
+            name = "get_task_result",
+            target = "captcha.capsolver",
             skip_all,
             fields(task_id = %task_id)
         )

@@ -212,7 +212,11 @@ impl CapmonsterProvider {
     /// Create captcha task (internal).
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "CapmonsterProvider::create_task_internal", skip_all)
+        tracing::instrument(
+            name = "create_task_internal",
+            target = "captcha.capmonster",
+            skip_all
+        )
     )]
     async fn create_task_internal(&self, task: CapmonsterTask) -> Result<TaskId> {
         Self::validate_task(&task)?;
@@ -241,7 +245,8 @@ impl CapmonsterProvider {
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(
-            name = "CapmonsterProvider::get_task_result_internal",
+            name = "get_task_result_internal",
+            target = "captcha.capmonster",
             skip_all,
             fields(task_id = %task_id)
         )
@@ -275,7 +280,7 @@ impl Provider for CapmonsterProvider {
 
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "CapmonsterProvider::create_task", skip_all)
+        tracing::instrument(name = "create_task", target = "captcha.capmonster", skip_all)
     )]
     async fn create_task(&self, task: CaptchaTask) -> Result<TaskCreationOutcome<Self::Solution>> {
         let internal_task: CapmonsterTask =
@@ -287,7 +292,8 @@ impl Provider for CapmonsterProvider {
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(
-            name = "CapmonsterProvider::get_task_result",
+            name = "get_task_result",
+            target = "captcha.capmonster",
             skip_all,
             fields(task_id = %task_id)
         )

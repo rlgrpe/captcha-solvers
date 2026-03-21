@@ -212,7 +212,7 @@ impl RucaptchaProvider {
     /// Create a captcha solving task (internal)
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "RucaptchaProvider::create_task_internal", skip_all)
+        tracing::instrument(name = "create_task_internal", target = "captcha.rucaptcha", skip_all)
     )]
     async fn create_task_internal(&self, task: RucaptchaTask) -> Result<TaskId> {
         let request = CreateTaskRequest {
@@ -240,7 +240,8 @@ impl RucaptchaProvider {
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(
-            name = "RucaptchaProvider::get_task_result_internal",
+            name = "get_task_result_internal",
+            target = "captcha.rucaptcha",
             skip_all,
             fields(task_id = %task_id)
         )
@@ -274,7 +275,7 @@ impl Provider for RucaptchaProvider {
 
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "RucaptchaProvider::create_task", skip_all)
+        tracing::instrument(name = "create_task", target = "captcha.rucaptcha", skip_all)
     )]
     async fn create_task(&self, task: CaptchaTask) -> Result<TaskCreationOutcome<Self::Solution>> {
         // Convert unified task to provider-specific format
@@ -289,7 +290,8 @@ impl Provider for RucaptchaProvider {
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(
-            name = "RucaptchaProvider::get_task_result",
+            name = "get_task_result",
+            target = "captcha.rucaptcha",
             skip_all,
             fields(task_id = %task_id)
         )
