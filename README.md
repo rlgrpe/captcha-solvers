@@ -60,28 +60,28 @@ A generic Rust library for solving captchas through various provider services.
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.4" }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.3.0" }
 ```
 
 To use only specific providers:
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.4", default-features = false, features = ["capmonster"] }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.3.0", default-features = false, features = ["capmonster"] }
 ```
 
 With rustls-tls (pure Rust TLS) instead of native-tls:
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.4", default-features = false, features = ["capsolver", "rucaptcha", "tracing", "rustls-tls"] }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.3.0", default-features = false, features = ["capsolver", "rucaptcha", "tracing", "rustls-tls"] }
 ```
 
 With metrics support:
 
 ```toml
 [dependencies]
-captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.1.4", features = ["metrics"] }
+captcha-solvers = { git = "https://github.com/rlgrpe/captcha-solvers.git", tag = "v0.3.0", features = ["metrics"] }
 ```
 
 ## Quick Start
