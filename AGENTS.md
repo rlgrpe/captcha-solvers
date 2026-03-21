@@ -50,13 +50,19 @@ cargo run --example basic_recaptcha_v2
 ```
 captcha-solvers/
 ├── src/
-│   ├── lib.rs              # Main library entry point
-│   ├── providers/          # Provider implementations (Capsolver, RuCaptcha)
+│   ├── lib.rs              # Main library entry point, public API re-exports
+│   ├── errors.rs           # UnsupportedTaskError, RetryableError trait
+│   ├── solutions.rs        # Shared solution types
+│   ├── providers/          # Provider implementations
+│   │   ├── mod.rs          # Re-exports
+│   │   ├── traits.rs       # Provider trait, TaskCreationOutcome
+│   │   ├── retryable/      # CaptchaRetryableProvider wrapper
+│   │   ├── capsolver/      # Capsolver implementation
+│   │   ├── capmonster/     # CapMonster Cloud implementation
+│   │   └── rucaptcha/      # RuCaptcha implementation
 │   ├── tasks/              # Captcha task types (ReCaptcha, Turnstile, etc.)
-│   ├── service/            # Service layer and configuration
-│   ├── solutions.rs        # Solution types
-│   ├── errors.rs           # Error types
-│   └── utils/              # Shared utilities (proxy, retry, serde)
+│   ├── service/            # Service layer, config, polling loop
+│   └── utils/              # Shared utilities (proxy, retry, serde, span_status)
 ├── tests/                  # Integration tests
 ├── examples/               # Usage examples
 └── Cargo.toml              # Package manifest
@@ -67,6 +73,7 @@ captcha-solvers/
 | Feature | Description | Default |
 |---------|-------------|---------|
 | `capsolver` | Enable Capsolver provider | Yes |
+| `capmonster` | Enable CapMonster Cloud provider | Yes |
 | `rucaptcha` | Enable RuCaptcha provider | Yes |
 | `tracing` | OpenTelemetry tracing instrumentation | Yes |
 | `metrics` | OpenTelemetry metrics | No |
@@ -77,6 +84,7 @@ captcha-solvers/
 
 Required for integration tests:
 - `CAPSOLVER_API_KEY` - Capsolver API key
+- `CAPMONSTER_API_KEY` - CapMonster Cloud API key
 - `RUCAPTCHA_API_KEY` - RuCaptcha API key
 
 Optional proxy configuration:
