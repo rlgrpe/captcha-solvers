@@ -16,11 +16,9 @@ use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
 #[cfg(feature = "tracing")]
-use opentelemetry::trace::Status;
+use crate::utils::span_status::{record_error, set_span_ok};
 #[cfg(feature = "tracing")]
 use tracing::Span;
-#[cfg(feature = "tracing")]
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Default CapMonster API URL.
 pub const DEFAULT_API_URL: &str = "https://api.capmonster.cloud";
@@ -41,7 +39,7 @@ impl Debug for CapmonsterProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CapmonsterProvider")
             .field("url", &self.url)
-            .field("api_key", &"[REDACTED]")
+            .field("api_key", &crate::utils::REDACTED)
             .finish()
     }
 }
@@ -212,7 +210,12 @@ impl CapmonsterProvider {
     /// Create captcha task (internal).
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "CapmonsterProvider::create_task_internal", skip_all)
+        tracing::instrument(
+            name = "create_task_internal",
+            target = "captcha.capmonster",
+            skip_all,
+            fields(task_id = tracing::field::Empty)
+        )
     )]
     async fn create_task_internal(&self, task: CapmonsterTask) -> Result<TaskId> {
         Self::validate_task(&task)?;
@@ -228,11 +231,7 @@ impl CapmonsterProvider {
         let task_id = TaskId::from(data.task_id);
 
         #[cfg(feature = "tracing")]
-        {
-            Span::current()
-                .record("task_id", task_id.as_ref())
-                .set_status(Status::Ok);
-        }
+        Span::current().record("task_id", task_id.as_ref());
 
         Ok(task_id)
     }
@@ -241,7 +240,8 @@ impl CapmonsterProvider {
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(
-            name = "CapmonsterProvider::get_task_result_internal",
+            name = "get_task_result_internal",
+            target = "captcha.capmonster",
             skip_all,
             fields(task_id = %task_id)
         )
@@ -262,7 +262,7 @@ impl CapmonsterProvider {
 
         #[cfg(feature = "tracing")]
         if data.solution.is_some() {
-            Span::current().set_status(Status::Ok);
+            set_span_ok();
         }
 
         Ok(data.solution)
@@ -275,24 +275,47 @@ impl Provider for CapmonsterProvider {
 
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(name = "CapmonsterProvider::create_task", skip_all)
+        tracing::instrument(
+            name = "create_task",
+            target = "captcha.capmonster",
+            skip_all,
+            fields(captcha.task_type)
+        )
     )]
     async fn create_task(&self, task: CaptchaTask) -> Result<TaskCreationOutcome<Self::Solution>> {
+        #[cfg(feature = "tracing")]
+        Span::current().record("captcha.task_type", task.to_string());
+
         let internal_task: CapmonsterTask =
             task.try_into().map_err(CapmonsterError::UnsupportedTask)?;
-        let task_id = self.create_task_internal(internal_task).await?;
-        Ok(TaskCreationOutcome::Pending(task_id))
+        let result = self.create_task_internal(internal_task).await;
+
+        #[cfg(feature = "tracing")]
+        match &result {
+            Ok(_) => set_span_ok(),
+            Err(e) => record_error(e, "Capmonster"),
+        }
+
+        result.map(TaskCreationOutcome::Pending)
     }
 
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(
-            name = "CapmonsterProvider::get_task_result",
+            name = "get_task_result",
+            target = "captcha.capmonster",
             skip_all,
             fields(task_id = %task_id)
         )
     )]
     async fn get_task_result(&self, task_id: &TaskId) -> Result<Option<Self::Solution>> {
-        self.get_task_result_internal(task_id).await
+        let result = self.get_task_result_internal(task_id).await;
+
+        #[cfg(feature = "tracing")]
+        if let Err(ref e) = result {
+            record_error(e, "Capmonster");
+        }
+
+        result
     }
 }

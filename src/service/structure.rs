@@ -11,6 +11,10 @@ use std::time::Instant;
 use tokio_util::sync::CancellationToken;
 
 #[cfg(feature = "tracing")]
+use crate::utils::error_chain::ErrorChain;
+#[cfg(feature = "tracing")]
+use crate::utils::span_status::{set_span_error, set_span_ok};
+#[cfg(feature = "tracing")]
 use tracing::{Span, debug, error, info, warn};
 
 #[cfg(feature = "metrics")]
@@ -49,23 +53,23 @@ impl ServiceMetrics {
             let meter = global::meter("captcha_solvers");
             Self {
                 tasks_created: meter
-                    .u64_counter("captcha_solvers.tasks_created")
+                    .u64_counter("captcha_solvers.tasks_created_total")
                     .with_description("Number of captcha tasks created")
                     .build(),
                 solutions_received: meter
-                    .u64_counter("captcha_solvers.solutions_received")
+                    .u64_counter("captcha_solvers.solutions_received_total")
                     .with_description("Number of captcha solutions successfully received")
                     .build(),
                 timeouts: meter
-                    .u64_counter("captcha_solvers.timeouts")
+                    .u64_counter("captcha_solvers.timeouts_total")
                     .with_description("Number of captcha solve timeouts")
                     .build(),
                 cancellations: meter
-                    .u64_counter("captcha_solvers.cancellations")
+                    .u64_counter("captcha_solvers.cancellations_total")
                     .with_description("Number of cancelled captcha operations")
                     .build(),
                 errors: meter
-                    .u64_counter("captcha_solvers.errors")
+                    .u64_counter("captcha_solvers.errors_total")
                     .with_description("Number of captcha solve errors")
                     .build(),
                 solve_time: meter
@@ -251,7 +255,8 @@ where
             fields(
                 captcha.task_type,
                 captcha.task_id,
-                captcha.provider = std::any::type_name::<P>()
+                captcha.provider = std::any::type_name::<P>(),
+                outcome = tracing::field::Empty
             )
         )
     )]
@@ -271,7 +276,8 @@ where
             fields(
                 captcha.task_type,
                 captcha.task_id,
-                captcha.provider = std::any::type_name::<P>()
+                captcha.provider = std::any::type_name::<P>(),
+                outcome = tracing::field::Empty
             )
         )
     )]
@@ -297,6 +303,12 @@ where
 
         // Create the task
         let outcome = self.provider.create_task(task).await.map_err(|e| {
+            #[cfg(feature = "tracing")]
+            {
+                Span::current().record("outcome", "error");
+                set_span_error(&ErrorChain(&e));
+                error!(error = %ErrorChain(&e), "Failed to create captcha task");
+            }
             #[cfg(feature = "metrics")]
             ServiceMetrics::global().errors.add(
                 1,
@@ -321,6 +333,8 @@ where
                 #[cfg(feature = "tracing")]
                 {
                     Span::current().record("captcha.task_id", task_id.as_ref());
+                    Span::current().record("outcome", "success");
+                    set_span_ok();
                     info!(
                         task_id = %task_id,
                         task_type = %task_type,
@@ -377,12 +391,16 @@ where
                 let elapsed = start.elapsed();
 
                 #[cfg(feature = "tracing")]
-                info!(
-                    task_id = %task_id,
-                    elapsed_secs = %elapsed.as_secs_f64(),
-                    poll_count = %poll_count,
-                    "Cancellation requested"
-                );
+                {
+                    Span::current().record("outcome", "cancelled");
+                    set_span_error(&"cancelled");
+                    info!(
+                        task_id = %task_id,
+                        elapsed_secs = %elapsed.as_secs_f64(),
+                        poll_count = %poll_count,
+                        "Cancellation requested"
+                    );
+                }
 
                 #[cfg(feature = "metrics")]
                 {
@@ -412,13 +430,17 @@ where
             let elapsed = start.elapsed();
             if elapsed >= timeout {
                 #[cfg(feature = "tracing")]
-                warn!(
-                    task_id = %task_id,
-                    timeout_secs = %timeout.as_secs_f64(),
-                    elapsed_secs = %elapsed.as_secs_f64(),
-                    poll_count = %poll_count,
-                    "Captcha solution timeout"
-                );
+                {
+                    Span::current().record("outcome", "timeout");
+                    set_span_error(&"timeout");
+                    warn!(
+                        task_id = %task_id,
+                        timeout_secs = %timeout.as_secs_f64(),
+                        elapsed_secs = %elapsed.as_secs_f64(),
+                        poll_count = %poll_count,
+                        "Captcha solution timeout"
+                    );
+                }
 
                 #[cfg(feature = "metrics")]
                 {
@@ -451,12 +473,16 @@ where
                     let elapsed = start.elapsed();
 
                     #[cfg(feature = "tracing")]
-                    info!(
-                        task_id = %task_id,
-                        elapsed_secs = %elapsed.as_secs_f64(),
-                        poll_count = %poll_count,
-                        "Captcha solved successfully"
-                    );
+                    {
+                        Span::current().record("outcome", "success");
+                        set_span_ok();
+                        info!(
+                            task_id = %task_id,
+                            elapsed_secs = %elapsed.as_secs_f64(),
+                            poll_count = %poll_count,
+                            "Captcha solved successfully"
+                        );
+                    }
 
                     #[cfg(feature = "metrics")]
                     {
@@ -496,15 +522,19 @@ where
                     let elapsed = start.elapsed();
 
                     #[cfg(feature = "tracing")]
-                    error!(
-                        task_id = %task_id,
-                        error = %e,
-                        is_retryable = %e.is_retryable(),
-                        should_retry_operation = %e.should_retry_operation(),
-                        elapsed_secs = %elapsed.as_secs_f64(),
-                        poll_count = %poll_count,
-                        "Permanent error while polling for solution"
-                    );
+                    {
+                        Span::current().record("outcome", "error");
+                        set_span_error(&ErrorChain(&e));
+                        error!(
+                            task_id = %task_id,
+                            error = %ErrorChain(&e),
+                            is_retryable = %e.is_retryable(),
+                            should_retry_operation = %e.should_retry_operation(),
+                            elapsed_secs = %elapsed.as_secs_f64(),
+                            poll_count = %poll_count,
+                            "Permanent error while polling for solution"
+                        );
+                    }
 
                     #[cfg(feature = "metrics")]
                     {
@@ -538,7 +568,7 @@ where
                     #[cfg(feature = "tracing")]
                     warn!(
                         task_id = %task_id,
-                        error = %_e,
+                        error = %ErrorChain(&_e),
                         poll_count = %poll_count,
                         "Transient error while polling, will retry"
                     );

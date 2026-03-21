@@ -72,21 +72,3 @@ impl RetryConfig {
             .with_max_times(self.max_retries)
     }
 }
-
-/// Default retry strategy for captcha solver operations
-///
-/// Uses exponential backoff with:
-/// - Initial delay: 1 second
-/// - Max delay: 30 seconds
-/// - Factor: 2x
-/// - Max retries: 3
-///
-/// For custom retry settings, use [`RetryConfig`] instead.
-#[allow(dead_code)]
-pub fn default_retry_strategy() -> ExponentialBuilder {
-    ExponentialBuilder::default()
-        .with_min_delay(Duration::from_secs(1))
-        .with_max_delay(Duration::from_secs(30))
-        .with_factor(2.0)
-        .with_max_times(3)
-}
